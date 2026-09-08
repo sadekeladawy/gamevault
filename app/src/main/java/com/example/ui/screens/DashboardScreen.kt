@@ -106,143 +106,71 @@ fun DashboardScreen(
     ) {
         // Welcome Hero Banner
         item {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "GameVault",
-                            color = TextPrimary,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                        Text(
-                            text = "Your personal gaming archive and completion tracker",
-                            color = TextSecondary,
-                            fontSize = 13.sp
-                        )
-                    }
-
-                    Button(
-                        onClick = onAddGame,
-                        colors = ButtonDefaults.buttonColors(containerColor = CyberPurple),
-                        modifier = Modifier.testTag("dashboard_add_game_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Add Game", fontWeight = FontWeight.Bold)
-                    }
-                }
+                Text(
+                    text = "GameVault",
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Your personal gaming archive and completion tracker",
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
             }
         }
 
-        // --- FIRESTORE GAME DATABASE SPOTLIGHT HERO CARD ---
+        // --- SEARCH HERO CARD ---
         item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .border(1.dp, CyberPurple.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(20.dp))
+                    .border(1.dp, DarkCardBorder, RoundedCornerShape(20.dp))
                     .testTag("dashboard_database_card"),
-                colors = CardDefaults.cardColors(containerColor = DarkCard)
+                colors = CardDefaults.cardColors(containerColor = DarkCard),
+                shape = RoundedCornerShape(20.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(CyberPurple.copy(alpha = 0.3f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Cloud,
-                                    contentDescription = null,
-                                    tint = NeonCyan,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = "RAWG Video Games Database",
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                                Text(
-                                    text = "Search & discover from 500,000+ games",
-                                    color = TextSecondary,
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
+                    // Clean and simple title without decorative shapes or badges
+                    Text(
+                        text = "Search",
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
 
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = AccentEmerald.copy(alpha = 0.15f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, AccentEmerald.copy(alpha = 0.3f))
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(AccentEmerald)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Live RAWG API",
-                                    color = AccentEmerald,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-
-                    // Direct Search Input Field
+                    // Modern Material 3 Search Field with rounded corners (primary focus)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         OutlinedTextField(
                             value = dbSearchInput,
                             onValueChange = { dbSearchInput = it },
                             modifier = Modifier
                                 .weight(1f)
+                                .height(54.dp)
                                 .testTag("dashboard_db_search_input"),
                             placeholder = {
                                 Text(
-                                    text = "Search games (e.g. Elden, Witcher, Zelda)...",
+                                    text = "Search games...",
                                     color = TextMuted,
-                                    fontSize = 12.sp
+                                    fontSize = 14.sp
                                 )
                             },
                             leadingIcon = {
@@ -250,15 +178,15 @@ fun DashboardScreen(
                                     imageVector = Icons.Default.Search,
                                     contentDescription = null,
                                     tint = NeonCyan,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             },
                             singleLine = true,
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = DarkSurface,
                                 unfocusedContainerColor = DarkSurface,
-                                focusedBorderColor = NeonCyan,
+                                focusedBorderColor = CyberPurple,
                                 unfocusedBorderColor = DarkCardBorder,
                                 focusedTextColor = TextPrimary,
                                 unfocusedTextColor = TextPrimary,
@@ -266,29 +194,37 @@ fun DashboardScreen(
                             )
                         )
 
+                        // Search Button - slightly larger with better-rounded corners
                         Button(
                             onClick = {
                                 onSearchDatabase(dbSearchInput)
                                 onNavigate(NavDestination.GAME_DATABASE)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = CyberPurple),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.height(48.dp)
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .height(54.dp)
+                                .testTag("dashboard_search_button")
                         ) {
-                            Text("Search", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text(
+                                text = "Search",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
                         }
                     }
 
-                    // Quick Chips & Explore Button
+                    // Quick Chips & Explore
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf("Elden Ring", "Cyberpunk", "RPG").forEach { chip ->
                                 Surface(
-                                    shape = RoundedCornerShape(6.dp),
+                                    shape = RoundedCornerShape(10.dp),
                                     color = DarkSurface,
                                     border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder),
                                     modifier = Modifier.clickable {
@@ -299,8 +235,9 @@ fun DashboardScreen(
                                     Text(
                                         text = chip,
                                         color = TextSecondary,
-                                        fontSize = 10.sp,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                     )
                                 }
                             }
@@ -311,17 +248,17 @@ fun DashboardScreen(
                             contentPadding = PaddingValues(horizontal = 4.dp)
                         ) {
                             Text(
-                                text = "Explore Database",
+                                text = "Explore",
                                 color = NeonCyan,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
                             )
-                            Spacer(modifier = Modifier.width(2.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
                                 tint = NeonCyan,
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                         }
                     }
@@ -329,10 +266,10 @@ fun DashboardScreen(
             }
         }
 
-        // --- DISCOVER POPULAR GAMES FROM RAWG CAROUSEL ---
+        // --- DISCOVER ON RAWG CAROUSEL ---
         if (popularGames.isNotEmpty()) {
             item {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -340,48 +277,50 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Discover on RAWG",
-                            color = TextPrimary,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        text = "Discover on RAWG",
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
+                    )
 
                     TextButton(onClick = { onNavigate(NavDestination.GAME_DATABASE) }) {
                         Text(
-                            text = "Search RAWG (${popularGames.size})",
+                            text = "See all",
                             color = NeonCyan,
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
 
+                Spacer(modifier = Modifier.height(14.dp))
+
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     items(popularGames.take(8), key = { it.id }) { rawgGame ->
                         val inVault = isGameInVault(rawgGame.name)
 
                         Card(
                             modifier = Modifier
-                                .width(150.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .border(1.dp, DarkCardBorder, RoundedCornerShape(12.dp))
+                                .width(160.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .border(1.dp, DarkCardBorder, RoundedCornerShape(18.dp))
                                 .clickable {
                                     onSearchDatabase(rawgGame.name)
                                     onNavigate(NavDestination.GAME_DATABASE)
                                 },
-                            colors = CardDefaults.cardColors(containerColor = DarkCard)
+                            colors = CardDefaults.cardColors(containerColor = DarkCard),
+                            shape = RoundedCornerShape(18.dp)
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(170.dp)
+                                        .height(180.dp)
                                         .background(DarkSurface)
                                 ) {
                                     if (!rawgGame.backgroundImage.isNullOrBlank()) {
@@ -396,7 +335,9 @@ fun DashboardScreen(
                                             imageVector = Icons.Outlined.VideogameAsset,
                                             contentDescription = null,
                                             tint = TextMuted,
-                                            modifier = Modifier.size(36.dp).align(Alignment.Center)
+                                            modifier = Modifier
+                                                .size(38.dp)
+                                                .align(Alignment.Center)
                                         )
                                     }
 
@@ -404,27 +345,27 @@ fun DashboardScreen(
                                     val ratingScore = rawgGame.rating ?: 0.0
                                     if (ratingScore > 0.0) {
                                         Surface(
-                                            shape = RoundedCornerShape(6.dp),
+                                            shape = RoundedCornerShape(8.dp),
                                             color = DarkBg.copy(alpha = 0.85f),
                                             modifier = Modifier
                                                 .align(Alignment.TopEnd)
-                                                .padding(6.dp)
+                                                .padding(8.dp)
                                         ) {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.Star,
                                                     contentDescription = null,
                                                     tint = AccentAmber,
-                                                    modifier = Modifier.size(10.dp)
+                                                    modifier = Modifier.size(11.dp)
                                                 )
-                                                Spacer(modifier = Modifier.width(2.dp))
+                                                Spacer(modifier = Modifier.width(3.dp))
                                                 Text(
                                                     text = String.format(Locale.US, "%.1f", ratingScore),
                                                     color = Color.White,
-                                                    fontSize = 10.sp,
+                                                    fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
                                             }
@@ -432,11 +373,15 @@ fun DashboardScreen(
                                     }
                                 }
 
-                                Column(modifier = Modifier.padding(10.dp)) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp)
+                                ) {
                                     Text(
                                         text = rawgGame.name,
                                         color = TextPrimary,
-                                        fontSize = 12.sp,
+                                        fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -444,22 +389,22 @@ fun DashboardScreen(
                                     val firstGenre = rawgGame.genres?.firstOrNull()?.name ?: "Action"
                                     Text(
                                         text = firstGenre,
-                                        color = NeonCyan,
-                                        fontSize = 10.sp,
+                                        color = TextMuted,
+                                        fontSize = 11.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
 
-                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Spacer(modifier = Modifier.height(10.dp))
 
                                     if (inVault) {
                                         Surface(
-                                            shape = RoundedCornerShape(6.dp),
+                                            shape = RoundedCornerShape(10.dp),
                                             color = AccentEmerald.copy(alpha = 0.15f),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Row(
-                                                modifier = Modifier.padding(vertical = 4.dp),
+                                                modifier = Modifier.padding(vertical = 6.dp),
                                                 horizontalArrangement = Arrangement.Center,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
@@ -467,13 +412,13 @@ fun DashboardScreen(
                                                     imageVector = Icons.Default.Check,
                                                     contentDescription = null,
                                                     tint = AccentEmerald,
-                                                    modifier = Modifier.size(12.dp)
+                                                    modifier = Modifier.size(13.dp)
                                                 )
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Text(
                                                     text = "In Vault",
                                                     color = AccentEmerald,
-                                                    fontSize = 10.sp,
+                                                    fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
                                             }
@@ -482,19 +427,19 @@ fun DashboardScreen(
                                         Button(
                                             onClick = { onAddRawgGameToVault(rawgGame, GameStatus.BACKLOG) },
                                             colors = ButtonDefaults.buttonColors(containerColor = CyberPurple),
-                                            shape = RoundedCornerShape(6.dp),
-                                            contentPadding = PaddingValues(vertical = 2.dp),
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(vertical = 4.dp),
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(28.dp)
+                                                .height(32.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Add,
                                                 contentDescription = null,
-                                                modifier = Modifier.size(12.dp)
+                                                modifier = Modifier.size(13.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(2.dp))
-                                            Text("+ Add", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Spacer(modifier = Modifier.width(3.dp))
+                                            Text("+ Add", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }

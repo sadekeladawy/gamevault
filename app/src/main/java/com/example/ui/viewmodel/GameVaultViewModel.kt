@@ -33,7 +33,7 @@ import java.util.Calendar
 
 enum class NavDestination(val title: String, val iconName: String) {
     DASHBOARD("Dashboard", "home"),
-    GAME_DATABASE("Game Database", "search"),
+    GAME_DATABASE("Search", "search"),
     LIBRARY("My Games", "sports_esports"),
     COMPLETED("Completed", "check_circle"),
     PLAYING("Currently Playing", "play_circle"),
