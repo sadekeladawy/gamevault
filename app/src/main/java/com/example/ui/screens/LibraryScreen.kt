@@ -379,7 +379,11 @@ fun LibraryScreen(
             }
         } else {
             // Game Cards
-            items(games, key = { it.id }) { game ->
+            items(
+                items = games,
+                key = { it.id },
+                contentType = { "game_card" }
+            ) { game ->
                 GameCard(
                     game = game,
                     onClick = { onGameClick(game) },

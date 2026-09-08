@@ -99,6 +99,15 @@ fun DashboardScreen(
     modifier: Modifier = Modifier
 ) {
     var dbSearchInput by remember { mutableStateOf("") }
+    val currentYear = remember { java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) }
+    val chartItems = remember(stats.yearlyCompletions, currentYear) {
+        (currentYear - 4..currentYear).map { yr ->
+            BarChartItem(
+                label = yr.toString().takeLast(2),
+                value = stats.yearlyCompletions[yr] ?: 0
+            )
+        }
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -301,7 +310,11 @@ fun DashboardScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    items(popularGames.take(8), key = { it.id }) { rawgGame ->
+                    items(
+                        items = popularGames.take(8),
+                        key = { it.id },
+                        contentType = { "discover_game" }
+                    ) { rawgGame ->
                         val inVault = isGameInVault(rawgGame.name)
 
                         Card(
@@ -514,7 +527,7 @@ fun DashboardScreen(
                         modifier = Modifier.weight(1f)
                     )
                     StatCard(
-                        title = "Done in ${java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)}",
+                        title = "Done in $currentYear",
                         value = stats.completedThisYear.toString(),
                         icon = Icons.Outlined.CalendarToday,
                         accentColor = CyberPurple,
@@ -553,14 +566,6 @@ fun DashboardScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                     }
-                }
-
-                val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-                val chartItems = (currentYear - 4..currentYear).map { yr ->
-                    BarChartItem(
-                        label = yr.toString().takeLast(2),
-                        value = stats.yearlyCompletions[yr] ?: 0
-                    )
                 }
 
                 CompletionBarChart(
@@ -606,7 +611,11 @@ fun DashboardScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(stats.recentlyCompletedGames, key = { it.id }) { game ->
+                    items(
+                        items = stats.recentlyCompletedGames,
+                        key = { it.id },
+                        contentType = { "game_card" }
+                    ) { game ->
                         GameCard(
                             game = game,
                             onClick = { onGameClick(game) },
@@ -659,7 +668,11 @@ fun DashboardScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(stats.highestRatedGames, key = { it.id }) { game ->
+                    items(
+                        items = stats.highestRatedGames,
+                        key = { it.id },
+                        contentType = { "game_card" }
+                    ) { game ->
                         GameCard(
                             game = game,
                             onClick = { onGameClick(game) },
