@@ -95,6 +95,7 @@ import com.example.ui.components.ImportDialog
 import com.example.ui.components.UserProfileDialog
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.DashboardScreen
+import com.example.ui.screens.GameDatabaseScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StatisticsScreen
@@ -116,6 +117,7 @@ import kotlinx.coroutines.launch
 fun getDestinationIcon(dest: NavDestination): ImageVector {
     return when (dest) {
         NavDestination.DASHBOARD -> Icons.Filled.Home
+        NavDestination.GAME_DATABASE -> Icons.Outlined.Search
         NavDestination.LIBRARY -> Icons.Filled.SportsEsports
         NavDestination.COMPLETED -> Icons.Filled.CheckCircle
         NavDestination.PLAYING -> Icons.Filled.PlayCircle
@@ -705,9 +707,9 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                         ) {
                             val bottomNavItems = listOf(
                                 NavDestination.DASHBOARD,
+                                NavDestination.GAME_DATABASE,
                                 NavDestination.LIBRARY,
                                 NavDestination.COMPLETED,
-                                NavDestination.STATISTICS,
                                 NavDestination.AUTH
                             )
 
@@ -949,12 +951,53 @@ fun ScreenRouter(
 ) {
     when (destination) {
         NavDestination.DASHBOARD -> {
+            val masterGames by viewModel.filteredMasterGames.collectAsStateWithLifecycle()
             DashboardScreen(
                 stats = stats,
+                featuredDatabaseGames = masterGames,
                 onNavigate = { viewModel.navigateTo(it) },
                 onGameClick = { viewModel.openGameDetails(it) },
                 onToggleFavorite = { viewModel.toggleFavorite(it) },
-                onAddGame = { viewModel.openAddGame() }
+                onAddGame = { viewModel.openAddGame() },
+                onSearchDatabase = { query ->
+                    viewModel.setMasterSearchQuery(query)
+                },
+                onAddMasterGameToVault = { game, status ->
+                    viewModel.addMasterGameToVault(game, status)
+                },
+                isGameInVault = { viewModel.isGameInVault(it) }
+            )
+        }
+
+        NavDestination.GAME_DATABASE -> {
+            val masterGames by viewModel.filteredMasterGames.collectAsStateWithLifecycle()
+            val masterSearchQuery by viewModel.masterDbSearchQuery.collectAsStateWithLifecycle()
+            val selectedMasterPlatform by viewModel.selectedMasterPlatform.collectAsStateWithLifecycle()
+            val selectedMasterGenre by viewModel.selectedMasterGenre.collectAsStateWithLifecycle()
+            val isMasterDbLoading by viewModel.isMasterDbLoading.collectAsStateWithLifecycle()
+            val isMasterDbSyncing by viewModel.isMasterDbSyncing.collectAsStateWithLifecycle()
+            val masterDbStatusMessage by viewModel.masterDbStatusMessage.collectAsStateWithLifecycle()
+
+            GameDatabaseScreen(
+                masterGames = masterGames,
+                searchQuery = masterSearchQuery,
+                selectedPlatform = selectedMasterPlatform,
+                selectedGenre = selectedMasterGenre,
+                isLoading = isMasterDbLoading,
+                isSyncing = isMasterDbSyncing,
+                statusMessage = masterDbStatusMessage,
+                onSearchChange = { viewModel.setMasterSearchQuery(it) },
+                onPlatformChange = { viewModel.setMasterPlatformFilter(it) },
+                onGenreChange = { viewModel.setMasterGenreFilter(it) },
+                onRefresh = { viewModel.loadMasterGameDatabase() },
+                onSyncToFirestore = { viewModel.syncMasterCatalogToFirestore() },
+                onAddToVault = { game, status -> viewModel.addMasterGameToVault(game, status) },
+                isGameInVault = { viewModel.isGameInVault(it) },
+                getVaultGame = { viewModel.getVaultGame(it) },
+                onOpenVaultGame = {
+                    viewModel.navigateTo(NavDestination.LIBRARY)
+                    viewModel.openGameDetails(it)
+                }
             )
         }
 

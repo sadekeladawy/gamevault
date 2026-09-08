@@ -6,11 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
+import com.example.data.model.MasterGame
 import com.example.data.model.UserProfile
 import com.example.data.repository.AuthRepository
 import com.example.data.repository.AuthState
 import com.example.data.repository.FirestoreRepository
 import com.example.data.repository.GameRepository
+import com.example.data.sample.MasterGameCatalog
 import com.example.ui.components.AuthTab
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +28,7 @@ import java.util.Calendar
 
 enum class NavDestination(val title: String, val iconName: String) {
     DASHBOARD("Dashboard", "home"),
+    GAME_DATABASE("Game Database", "search"),
     LIBRARY("My Games", "sports_esports"),
     COMPLETED("Completed", "check_circle"),
     PLAYING("Currently Playing", "play_circle"),
@@ -133,6 +136,30 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
 
     val stats: StateFlow<VaultStats>
 
+    // --- Firestore Master Game Database ---
+    private val _masterGames = MutableStateFlow<List<MasterGame>>(MasterGameCatalog.defaultCatalog)
+    val masterGames: StateFlow<List<MasterGame>> = _masterGames.asStateFlow()
+
+    private val _masterDbSearchQuery = MutableStateFlow("")
+    val masterDbSearchQuery: StateFlow<String> = _masterDbSearchQuery.asStateFlow()
+
+    private val _selectedMasterPlatform = MutableStateFlow<String?>(null)
+    val selectedMasterPlatform: StateFlow<String?> = _selectedMasterPlatform.asStateFlow()
+
+    private val _selectedMasterGenre = MutableStateFlow<String?>(null)
+    val selectedMasterGenre: StateFlow<String?> = _selectedMasterGenre.asStateFlow()
+
+    private val _isMasterDbLoading = MutableStateFlow(false)
+    val isMasterDbLoading: StateFlow<Boolean> = _isMasterDbLoading.asStateFlow()
+
+    private val _isMasterDbSyncing = MutableStateFlow(false)
+    val isMasterDbSyncing: StateFlow<Boolean> = _isMasterDbSyncing.asStateFlow()
+
+    private val _masterDbStatusMessage = MutableStateFlow<String?>("Connected to Firestore games_database")
+    val masterDbStatusMessage: StateFlow<String?> = _masterDbStatusMessage.asStateFlow()
+
+    val filteredMasterGames: StateFlow<List<MasterGame>>
+
     init {
         val db = AppDatabase.getDatabase(application)
         repository = GameRepository(db.gameDao())
@@ -222,6 +249,33 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = VaultStats()
         )
+
+        // Filter master game database
+        filteredMasterGames = combine(
+            _masterGames,
+            _masterDbSearchQuery,
+            _selectedMasterPlatform,
+            _selectedMasterGenre
+        ) { games, query, platform, genre ->
+            games.filter { game ->
+                val matchesQuery = query.isBlank() ||
+                    game.title.contains(query, ignoreCase = true) ||
+                    game.genre.contains(query, ignoreCase = true) ||
+                    game.developer.contains(query, ignoreCase = true) ||
+                    game.publisher.contains(query, ignoreCase = true) ||
+                    game.platform.contains(query, ignoreCase = true) ||
+                    game.platforms.any { it.contains(query, ignoreCase = true) }
+                val matchesPlatform = platform == null || game.platform.equals(platform, ignoreCase = true) || game.platforms.any { it.equals(platform, ignoreCase = true) }
+                val matchesGenre = genre == null || game.genre.equals(genre, ignoreCase = true)
+                matchesQuery && matchesPlatform && matchesGenre
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = MasterGameCatalog.defaultCatalog
+        )
+
+        loadMasterGameDatabase()
     }
 
     private fun calculateStats(games: List<Game>): VaultStats {
@@ -719,5 +773,83 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                 _snackbarMessage.emit("Failed to restore from cloud: ${err.localizedMessage}")
             }
         }
+    }
+
+    // --- Master Game Database Actions ---
+
+    fun setMasterSearchQuery(query: String) {
+        _masterDbSearchQuery.value = query
+    }
+
+    fun setMasterPlatformFilter(platform: String?) {
+        _selectedMasterPlatform.value = platform
+    }
+
+    fun setMasterGenreFilter(genre: String?) {
+        _selectedMasterGenre.value = genre
+    }
+
+    fun loadMasterGameDatabase() {
+        viewModelScope.launch {
+            _isMasterDbLoading.value = true
+            val result = firestoreRepository.fetchMasterGameDatabase()
+            _isMasterDbLoading.value = false
+            result.onSuccess { cloudGames ->
+                if (cloudGames.isNotEmpty()) {
+                    val existingTitles = cloudGames.map { it.title.lowercase().trim() }.toSet()
+                    val combined = cloudGames.toMutableList()
+                    MasterGameCatalog.defaultCatalog.forEach { defaultGame ->
+                        if (!existingTitles.contains(defaultGame.title.lowercase().trim())) {
+                            combined.add(defaultGame)
+                        }
+                    }
+                    _masterGames.value = combined
+                    _masterDbStatusMessage.value = "Firestore Database Active (${cloudGames.size} cloud records synced)"
+                } else {
+                    _masterGames.value = MasterGameCatalog.defaultCatalog
+                    _masterDbStatusMessage.value = "Firestore Database Ready (${MasterGameCatalog.defaultCatalog.size} catalog games)"
+                }
+            }.onFailure { err ->
+                _masterGames.value = MasterGameCatalog.defaultCatalog
+                _masterDbStatusMessage.value = "Catalog Ready (${MasterGameCatalog.defaultCatalog.size} games, Offline Mode)"
+            }
+        }
+    }
+
+    fun syncMasterCatalogToFirestore() {
+        viewModelScope.launch {
+            _isMasterDbSyncing.value = true
+            val result = firestoreRepository.seedMasterGameDatabase(MasterGameCatalog.defaultCatalog)
+            _isMasterDbSyncing.value = false
+            result.onSuccess { count ->
+                _masterDbStatusMessage.value = "Successfully synced $count games to Firestore games_database"
+                _snackbarMessage.emit("Uploaded $count curated games to Firestore collection \"games_database\"!")
+                loadMasterGameDatabase()
+            }.onFailure { err ->
+                _masterDbStatusMessage.value = "Firestore upload note: ${err.localizedMessage}"
+                _snackbarMessage.emit("Cloud sync: ${err.localizedMessage}")
+            }
+        }
+    }
+
+    fun addMasterGameToVault(masterGame: MasterGame, status: GameStatus = GameStatus.BACKLOG, rating: Int = 0) {
+        viewModelScope.launch {
+            val exists = allGames.value.any { it.title.equals(masterGame.title, ignoreCase = true) }
+            if (exists) {
+                _snackbarMessage.emit("\"${masterGame.title}\" is already in your Vault!")
+                return@launch
+            }
+            val newGame = masterGame.toGame(status = status, rating = rating)
+            repository.insertGame(newGame)
+            _snackbarMessage.emit("Added \"${masterGame.title}\" to your Vault (${status.displayName})!")
+        }
+    }
+
+    fun isGameInVault(title: String): Boolean {
+        return allGames.value.any { it.title.equals(title, ignoreCase = true) }
+    }
+
+    fun getVaultGame(title: String): Game? {
+        return allGames.value.firstOrNull { it.title.equals(title, ignoreCase = true) }
     }
 }
