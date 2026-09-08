@@ -111,10 +111,13 @@ fun AuthScreen(
     lastSyncTimestamp: Long?,
     totalLocalGames: Int,
     initialTab: AuthTab = AuthTab.SIGN_IN,
+    unverifiedEmail: String? = null,
+    isResendingEmail: Boolean = false,
     onSignIn: (email: String, pass: String, rememberMe: Boolean) -> Unit,
     onSignUp: (fullName: String, email: String, pass: String, confirmPass: String, gamerTag: String?, rememberMe: Boolean) -> Unit,
     onForgotPassword: (email: String) -> Unit,
     onSendVerificationEmail: () -> Unit,
+    onResendVerificationEmail: (email: String, pass: String?) -> Unit = { _, _ -> },
     onRefreshVerification: () -> Unit,
     onUpdateProfile: (fullName: String, gamerTag: String?, photoUrl: String?) -> Unit,
     onSyncToCloud: () -> Unit,
@@ -124,6 +127,13 @@ fun AuthScreen(
     modifier: Modifier = Modifier
 ) {
     var currentTab by remember(initialTab) { mutableStateOf(initialTab) }
+
+    // If registration succeeds, switch to Sign In tab so user can see verification notice & sign in
+    androidx.compose.runtime.LaunchedEffect(authState) {
+        if (authState is AuthState.RegistrationSuccess || authState is AuthState.EmailNotVerified) {
+            currentTab = AuthTab.SIGN_IN
+        }
+    }
 
     Box(
         modifier = modifier
@@ -223,7 +233,10 @@ fun AuthScreen(
                             SignInScreen(
                                 authState = authState,
                                 isFirebaseConfigured = isFirebaseConfigured,
+                                unverifiedEmail = unverifiedEmail,
+                                isResendingEmail = isResendingEmail,
                                 onSignIn = onSignIn,
+                                onResendVerification = onResendVerificationEmail,
                                 onNavigateToSignUp = { currentTab = AuthTab.CREATE_ACCOUNT },
                                 onNavigateToForgotPassword = { currentTab = AuthTab.FORGOT_PASSWORD }
                             )

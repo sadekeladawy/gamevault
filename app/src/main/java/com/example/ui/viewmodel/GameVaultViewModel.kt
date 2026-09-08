@@ -80,6 +80,10 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     val currentUser: StateFlow<UserProfile?> = authRepository.currentUser
     val authState: StateFlow<AuthState> = authRepository.authState
     val isFirebaseConfigured: Boolean get() = authRepository.isFirebaseConfigured()
+    val unverifiedEmail: StateFlow<String?> = authRepository.unverifiedEmail
+
+    private val _isResendingEmail = MutableStateFlow(false)
+    val isResendingEmail: StateFlow<Boolean> = _isResendingEmail.asStateFlow()
 
     private val _isAuthModalOpen = MutableStateFlow(false)
     val isAuthModalOpen: StateFlow<Boolean> = _isAuthModalOpen.asStateFlow()
@@ -96,7 +100,7 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     private val _lastCloudSyncTimestamp = MutableStateFlow<Long?>(null)
     val lastCloudSyncTimestamp: StateFlow<Long?> = _lastCloudSyncTimestamp.asStateFlow()
 
-    private val _currentDestination = MutableStateFlow(NavDestination.DASHBOARD)
+    private val _currentDestination = MutableStateFlow(NavDestination.AUTH)
     val currentDestination: StateFlow<NavDestination> = _currentDestination.asStateFlow()
 
     private val _libraryFilters = MutableStateFlow(LibraryFilters())
@@ -137,6 +141,12 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             repository.checkAndSeedInitialData()
             authRepository.checkAutoLogin()
+            val user = authRepository.currentUser.value
+            if (user != null && user.isEmailVerified) {
+                _currentDestination.value = NavDestination.DASHBOARD
+            } else {
+                _currentDestination.value = NavDestination.AUTH
+            }
         }
 
         allGames = repository.allGames.stateIn(
@@ -338,6 +348,14 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun navigateTo(destination: NavDestination) {
+        val user = currentUser.value
+        if (destination != NavDestination.AUTH && (user == null || !user.isEmailVerified)) {
+            _currentDestination.value = NavDestination.AUTH
+            viewModelScope.launch {
+                _snackbarMessage.emit("Please sign in with a verified email to access the app.")
+            }
+            return
+        }
         _currentDestination.value = destination
     }
 
@@ -562,7 +580,13 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
             val result = authRepository.signIn(email, pass, rememberMe)
             result.onSuccess { user ->
                 _isAuthModalOpen.value = false
+                _currentDestination.value = NavDestination.DASHBOARD
                 _snackbarMessage.emit("Welcome back, ${user.fullName}!")
+            }.onFailure { err ->
+                if (err is com.example.data.repository.EmailNotVerifiedException) {
+                    _currentDestination.value = NavDestination.AUTH
+                    _snackbarMessage.emit("Email verification required. Check your inbox or click Resend.")
+                }
             }
         }
     }
@@ -577,11 +601,29 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     ) {
         viewModelScope.launch {
             val result = authRepository.signUp(fullName, email, pass, confirmPass, gamerTag, rememberMe)
-            result.onSuccess { user ->
+            result.onSuccess {
                 _isAuthModalOpen.value = false
-                _snackbarMessage.emit("Account created! Welcome to GameVault, ${user.fullName}.")
+                _currentDestination.value = NavDestination.AUTH
+                _snackbarMessage.emit("Account created! Verification email sent to $email. Please verify your email before logging in.")
             }
         }
+    }
+
+    fun resendVerificationEmail(email: String? = null, pass: String? = null) {
+        viewModelScope.launch {
+            _isResendingEmail.value = true
+            val result = authRepository.resendVerificationEmail(email, pass)
+            _isResendingEmail.value = false
+            result.onSuccess {
+                _snackbarMessage.emit("Verification email sent! Please check your inbox.")
+            }.onFailure { err ->
+                _snackbarMessage.emit(err.localizedMessage ?: "Failed to resend verification email.")
+            }
+        }
+    }
+
+    fun clearAuthErrors() {
+        authRepository.clearAuthState()
     }
 
     fun sendPasswordReset(email: String) {
@@ -596,14 +638,7 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun sendEmailVerification() {
-        viewModelScope.launch {
-            val result = authRepository.sendEmailVerification()
-            result.onSuccess {
-                _snackbarMessage.emit("Verification email sent! Please check your inbox.")
-            }.onFailure { err ->
-                _snackbarMessage.emit(err.localizedMessage ?: "Failed to send verification email.")
-            }
-        }
+        resendVerificationEmail()
     }
 
     fun refreshUserVerification() {
@@ -611,7 +646,8 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
             val result = authRepository.reloadUserVerification()
             result.onSuccess { user ->
                 if (user?.isEmailVerified == true) {
-                    _snackbarMessage.emit("Email verified successfully!")
+                    _currentDestination.value = NavDestination.DASHBOARD
+                    _snackbarMessage.emit("Email verified successfully! Welcome to GameVault.")
                 } else {
                     _snackbarMessage.emit("Email is not verified yet. Please check your inbox.")
                 }
@@ -633,6 +669,7 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     fun signOut() {
         viewModelScope.launch {
             authRepository.signOut()
+            _currentDestination.value = NavDestination.AUTH
             _isProfileModalOpen.value = false
             _snackbarMessage.emit("Signed out of GameVault.")
         }

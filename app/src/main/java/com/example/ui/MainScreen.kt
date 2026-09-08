@@ -145,6 +145,8 @@ fun MainScreen(viewModel: GameVaultViewModel) {
 
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val authState by viewModel.authState.collectAsStateWithLifecycle()
+    val unverifiedEmail by viewModel.unverifiedEmail.collectAsStateWithLifecycle()
+    val isResendingEmail by viewModel.isResendingEmail.collectAsStateWithLifecycle()
     val isAuthModalOpen by viewModel.isAuthModalOpen.collectAsStateWithLifecycle()
     val authModalInitialTab by viewModel.authModalInitialTab.collectAsStateWithLifecycle()
     val isProfileModalOpen by viewModel.isProfileModalOpen.collectAsStateWithLifecycle()
@@ -380,6 +382,8 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                             currentUser = currentUser,
                             authState = authState,
                             authModalInitialTab = authModalInitialTab,
+                            unverifiedEmail = unverifiedEmail,
+                            isResendingEmail = isResendingEmail,
                             isCloudSyncing = isCloudSyncing,
                             lastCloudSyncTimestamp = lastCloudSyncTimestamp,
                             allGames = allGames,
@@ -797,6 +801,8 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                 currentUser = currentUser,
                                 authState = authState,
                                 authModalInitialTab = authModalInitialTab,
+                                unverifiedEmail = unverifiedEmail,
+                                isResendingEmail = isResendingEmail,
                                 isCloudSyncing = isCloudSyncing,
                                 lastCloudSyncTimestamp = lastCloudSyncTimestamp,
                                 allGames = allGames,
@@ -893,12 +899,15 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                 authState = authState,
                 isFirebaseConfigured = viewModel.isFirebaseConfigured,
                 initialTab = authModalInitialTab,
+                unverifiedEmail = unverifiedEmail,
+                isResendingEmail = isResendingEmail,
                 onDismiss = { viewModel.closeAuthModal() },
                 onSignIn = { email, pass, rememberMe -> viewModel.signIn(email, pass, rememberMe) },
                 onSignUp = { name, email, pass, confirm, tag, rememberMe ->
                     viewModel.signUp(name, email, pass, confirm, tag, rememberMe)
                 },
-                onForgotPassword = { email -> viewModel.sendPasswordReset(email) }
+                onForgotPassword = { email -> viewModel.sendPasswordReset(email) },
+                onResendVerification = { email, pass -> viewModel.resendVerificationEmail(email, pass) }
             )
         }
 
@@ -927,6 +936,8 @@ fun ScreenRouter(
     currentUser: UserProfile?,
     authState: com.example.data.repository.AuthState,
     authModalInitialTab: com.example.ui.components.AuthTab,
+    unverifiedEmail: String? = null,
+    isResendingEmail: Boolean = false,
     isCloudSyncing: Boolean,
     lastCloudSyncTimestamp: Long?,
     allGames: List<com.example.data.model.Game>,
@@ -1063,12 +1074,15 @@ fun ScreenRouter(
                 lastSyncTimestamp = lastCloudSyncTimestamp,
                 totalLocalGames = allGames.size,
                 initialTab = authModalInitialTab,
+                unverifiedEmail = unverifiedEmail,
+                isResendingEmail = isResendingEmail,
                 onSignIn = { email, pass, rem -> viewModel.signIn(email, pass, rem) },
                 onSignUp = { name, email, pass, conf, tag, rem ->
                     viewModel.signUp(name, email, pass, conf, tag, rem)
                 },
                 onForgotPassword = { email -> viewModel.sendPasswordReset(email) },
                 onSendVerificationEmail = { viewModel.sendEmailVerification() },
+                onResendVerificationEmail = { email, pass -> viewModel.resendVerificationEmail(email, pass) },
                 onRefreshVerification = { viewModel.refreshUserVerification() },
                 onUpdateProfile = { name, tag, photoUrl ->
                     viewModel.updateUserProfile(name, tag, photoUrl)
