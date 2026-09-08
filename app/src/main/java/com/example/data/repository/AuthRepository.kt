@@ -27,7 +27,12 @@ sealed class AuthState {
     data class Authenticated(val user: UserProfile) : AuthState()
     data class Unauthenticated(val message: String? = null) : AuthState()
     data class Error(val message: String) : AuthState()
+    data class EmailNotVerified(val email: String, val message: String) : AuthState()
+    data class RegistrationSuccess(val email: String, val message: String) : AuthState()
+    data class VerificationEmailSent(val email: String, val message: String) : AuthState()
 }
+
+class EmailNotVerifiedException(val email: String, override val message: String) : Exception(message)
 
 class AuthRepository(
     private val context: Context,
@@ -50,6 +55,11 @@ class AuthRepository(
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
+    private val _unverifiedEmail = MutableStateFlow<String?>(null)
+    val unverifiedEmail: StateFlow<String?> = _unverifiedEmail.asStateFlow()
+
+    private val _savedPasswordForResend = MutableStateFlow<String?>(null)
+
     private val firebaseAuth: FirebaseAuth? by lazy {
         try {
             if (FirebaseApp.getApps(context).isNotEmpty()) {
@@ -71,9 +81,14 @@ class AuthRepository(
         prefs.edit().putBoolean(KEY_REMEMBER_ME, enabled).apply()
     }
 
+    fun clearAuthState() {
+        _authState.value = AuthState.Idle
+    }
+
     /**
      * Attempts automatic login on application launch.
-     * Checks if a Firebase user session or persisted remember-me session exists.
+     * Checks if a Firebase user session exists and verifies email verification status.
+     * Unverified users are signed out and prevented from accessing the main app.
      */
     suspend fun checkAutoLogin() = withContext(Dispatchers.IO) {
         val auth = firebaseAuth
@@ -89,14 +104,35 @@ class AuthRepository(
             val user = auth.currentUser
             if (user != null) {
                 try {
-                    // Refresh token / verification status
+                    // Refresh token / verification status directly with Firebase servers
                     user.reload().awaitTask()
+                    if (!user.isEmailVerified) {
+                        Log.i(TAG, "User ${user.email} is not email verified. Signing out.")
+                        auth.signOut()
+                        _currentUser.value = null
+                        _unverifiedEmail.value = user.email ?: ""
+                        _authState.value = AuthState.EmailNotVerified(
+                            email = user.email ?: "",
+                            message = "Your email is not verified yet. Please check your inbox and verify your email before logging in."
+                        )
+                        return@withContext
+                    }
                     val profile = loadOrCreateProfile(user)
                     _currentUser.value = profile
                     _authState.value = AuthState.Authenticated(profile)
                     firestoreRepository.updateLastLogin(user.uid)
                 } catch (e: Exception) {
-                    Log.w(TAG, "Auto login refresh failed, using cached user: ${e.message}")
+                    Log.w(TAG, "Auto login refresh failed, checking user: ${e.message}")
+                    if (!user.isEmailVerified) {
+                        auth.signOut()
+                        _currentUser.value = null
+                        _unverifiedEmail.value = user.email ?: ""
+                        _authState.value = AuthState.EmailNotVerified(
+                            email = user.email ?: "",
+                            message = "Your email is not verified yet. Please check your inbox and verify your email before logging in."
+                        )
+                        return@withContext
+                    }
                     val profile = UserProfile(
                         uid = user.uid,
                         fullName = user.displayName ?: "Vault Gamer",
@@ -113,6 +149,16 @@ class AuthRepository(
             // Check if user had an offline demo profile saved with remember me
             val offlineEmail = prefs.getString(KEY_OFFLINE_USER_EMAIL, null)
             if (offlineEmail != null) {
+                val isVerified = prefs.getBoolean("pref_offline_verified_${offlineEmail}", true)
+                if (!isVerified) {
+                    _currentUser.value = null
+                    _unverifiedEmail.value = offlineEmail
+                    _authState.value = AuthState.EmailNotVerified(
+                        email = offlineEmail,
+                        message = "Your email is not verified yet. Please check your inbox and verify your email before logging in."
+                    )
+                    return@withContext
+                }
                 val offlineName = prefs.getString(KEY_OFFLINE_USER_NAME, "Vault Gamer") ?: "Vault Gamer"
                 val offlineTag = prefs.getString(KEY_OFFLINE_USER_TAG, "VaultKeeper")
                 val offlineProfile = UserProfile(
@@ -150,6 +196,16 @@ class AuthRepository(
         val auth = firebaseAuth
         if (auth == null) {
             // Offline fallback when google-services.json is not configured
+            val isVerified = prefs.getBoolean("pref_offline_verified_${cleanEmail}", true)
+            if (!isVerified) {
+                _currentUser.value = null
+                _unverifiedEmail.value = cleanEmail
+                _savedPasswordForResend.value = cleanPass
+                val msg = "Your email address is not verified yet. Please check your inbox and verify your email before logging in."
+                _authState.value = AuthState.EmailNotVerified(cleanEmail, msg)
+                return@withContext Result.failure(EmailNotVerifiedException(cleanEmail, msg))
+            }
+
             val profile = UserProfile(
                 uid = "offline_user_${cleanEmail.hashCode()}",
                 fullName = cleanEmail.substringBefore("@").replaceFirstChar { it.uppercase() },
@@ -173,11 +229,32 @@ class AuthRepository(
         try {
             val result = auth.signInWithEmailAndPassword(cleanEmail, cleanPass).awaitTask()
             val user = result.user ?: throw IllegalStateException("Authentication succeeded but user is null")
+
+            // Reload user from Firebase servers to get fresh email verification status
+            user.reload().awaitTask()
+
+            if (!user.isEmailVerified) {
+                // Email is NOT verified: sign out, prevent navigation to home screen, show clear requirement message
+                Log.w(TAG, "Sign in blocked: email $cleanEmail is not verified.")
+                auth.signOut()
+                _currentUser.value = null
+                _unverifiedEmail.value = cleanEmail
+                _savedPasswordForResend.value = cleanPass
+                val msg = "Your email address is not verified yet. Please check your inbox and verify your email before logging in."
+                _authState.value = AuthState.EmailNotVerified(cleanEmail, msg)
+                return@withContext Result.failure(EmailNotVerifiedException(cleanEmail, msg))
+            }
+
+            // User is verified!
             val profile = loadOrCreateProfile(user)
             _currentUser.value = profile
             _authState.value = AuthState.Authenticated(profile)
+            _unverifiedEmail.value = null
+            _savedPasswordForResend.value = null
             firestoreRepository.updateLastLogin(user.uid)
             Result.success(profile)
+        } catch (e: EmailNotVerifiedException) {
+            Result.failure(e)
         } catch (e: Exception) {
             val friendlyMsg = mapFirebaseAuthException(e)
             _authState.value = AuthState.Error(friendlyMsg)
@@ -237,10 +314,14 @@ class AuthRepository(
                 .putString(KEY_OFFLINE_USER_EMAIL, cleanEmail)
                 .putString(KEY_OFFLINE_USER_NAME, cleanName)
                 .putString(KEY_OFFLINE_USER_TAG, profile.gamerTag)
+                .putBoolean("pref_offline_verified_${cleanEmail}", false)
                 .apply()
 
-            _currentUser.value = profile
-            _authState.value = AuthState.Authenticated(profile)
+            _currentUser.value = null
+            _unverifiedEmail.value = cleanEmail
+            _savedPasswordForResend.value = cleanPass
+            val successMsg = "Account created! We've sent a verification link to $cleanEmail. Please check your inbox and verify your email before signing in."
+            _authState.value = AuthState.RegistrationSuccess(cleanEmail, successMsg)
             return@withContext Result.success(profile)
         }
 
@@ -258,14 +339,17 @@ class AuthRepository(
                 Log.w(TAG, "Failed to update Firebase Auth profile: ${e.message}")
             }
 
-            // Send initial verification email automatically
+            // Automatically send verification email using sendEmailVerification()
+            var emailSent = false
             try {
                 user.sendEmailVerification().awaitTask()
+                emailSent = true
+                Log.i(TAG, "sendEmailVerification() sent to $cleanEmail")
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to send initial verification email: ${e.message}")
             }
 
-            // Create initial Firestore user document
+            // Create initial Firestore user document with isEmailVerified = false
             val initialProfile = UserProfile(
                 uid = user.uid,
                 fullName = cleanName,
@@ -273,12 +357,27 @@ class AuthRepository(
                 gamerTag = cleanTag,
                 createdAt = System.currentTimeMillis(),
                 lastLoginAt = System.currentTimeMillis(),
-                isEmailVerified = user.isEmailVerified
+                isEmailVerified = false
             )
-            firestoreRepository.saveUserProfile(initialProfile)
+            try {
+                firestoreRepository.saveUserProfile(initialProfile)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to save initial Firestore profile: ${e.message}")
+            }
 
-            _currentUser.value = initialProfile
-            _authState.value = AuthState.Authenticated(initialProfile)
+            // Do not allow unverified users to access the main app: sign out immediately
+            auth.signOut()
+            _currentUser.value = null
+            _unverifiedEmail.value = cleanEmail
+            _savedPasswordForResend.value = cleanPass
+
+            val successMsg = if (emailSent) {
+                "Account created successfully! We've sent a verification email to $cleanEmail. Please check your inbox and verify your email before signing in."
+            } else {
+                "Account created! Please check your inbox and verify your email before signing in."
+            }
+
+            _authState.value = AuthState.RegistrationSuccess(cleanEmail, successMsg)
             Result.success(initialProfile)
         } catch (e: Exception) {
             val friendlyMsg = mapFirebaseAuthException(e)
@@ -307,18 +406,64 @@ class AuthRepository(
         }
     }
 
-    suspend fun sendEmailVerification(): Result<Unit> = withContext(Dispatchers.IO) {
-        val auth = firebaseAuth ?: return@withContext Result.success(Unit)
-        val user = auth.currentUser ?: return@withContext Result.failure(IllegalStateException("No active user session found."))
+    /**
+     * Resends email verification to the user's email address.
+     * Works whether the user is currently signed in or signed out.
+     */
+    suspend fun resendVerificationEmail(email: String? = null, pass: String? = null): Result<Unit> = withContext(Dispatchers.IO) {
+        val targetEmail = email?.trim()?.ifEmpty { null } ?: _unverifiedEmail.value
+        val targetPass = pass?.trim()?.ifEmpty { null } ?: _savedPasswordForResend.value
+
+        _authState.value = AuthState.Loading
+
+        val auth = firebaseAuth
+        if (auth == null) {
+            val emailAddress = targetEmail ?: "demo@gamevault.io"
+            // For offline testing, mark as verified so demo user can log in
+            prefs.edit().putBoolean("pref_offline_verified_${emailAddress}", true).apply()
+            val msg = "Verification email sent to $emailAddress! In offline mode, your account has been verified. You can now sign in."
+            _authState.value = AuthState.VerificationEmailSent(emailAddress, msg)
+            return@withContext Result.success(Unit)
+        }
+
+        if (targetEmail.isNullOrBlank()) {
+            val msg = "Please provide your email address to resend the verification email."
+            _authState.value = AuthState.Error(msg)
+            return@withContext Result.failure(IllegalArgumentException(msg))
+        }
 
         try {
-            user.sendEmailVerification().awaitTask()
-            Result.success(Unit)
+            var user = auth.currentUser
+            // If signed out, re-authenticate in background to get user handle
+            if (user == null && !targetPass.isNullOrBlank()) {
+                val signInResult = auth.signInWithEmailAndPassword(targetEmail, targetPass).awaitTask()
+                user = signInResult.user
+            }
+
+            if (user != null) {
+                user.sendEmailVerification().awaitTask()
+                // Ensure unverified user remains signed out
+                if (!user.isEmailVerified) {
+                    auth.signOut()
+                    _currentUser.value = null
+                }
+                _unverifiedEmail.value = targetEmail
+                val msg = "Verification email sent to $targetEmail! Please check your inbox and spam folder."
+                _authState.value = AuthState.VerificationEmailSent(targetEmail, msg)
+                Result.success(Unit)
+            } else {
+                val msg = "Please enter your password above and click 'Resend Verification Email'."
+                _authState.value = AuthState.Error(msg)
+                Result.failure(IllegalStateException(msg))
+            }
         } catch (e: Exception) {
             val friendlyMsg = mapFirebaseAuthException(e)
+            _authState.value = AuthState.Error(friendlyMsg)
             Result.failure(Exception(friendlyMsg, e))
         }
     }
+
+    suspend fun sendEmailVerification(): Result<Unit> = resendVerificationEmail()
 
     suspend fun reloadUserVerification(): Result<UserProfile?> = withContext(Dispatchers.IO) {
         val auth = firebaseAuth

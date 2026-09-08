@@ -24,13 +24,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.VideogameAsset
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -48,6 +52,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,6 +73,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.repository.AuthState
+import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.AccentRose
 import com.example.ui.theme.CyberPurple
@@ -84,17 +90,34 @@ import com.example.ui.theme.TextSecondary
 fun SignInScreen(
     authState: AuthState,
     isFirebaseConfigured: Boolean,
+    unverifiedEmail: String? = null,
+    isResendingEmail: Boolean = false,
     onSignIn: (email: String, pass: String, rememberMe: Boolean) -> Unit,
+    onResendVerification: (email: String, pass: String?) -> Unit = { _, _ -> },
     onNavigateToSignUp: () -> Unit,
     onNavigateToForgotPassword: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
-    var email by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf(unverifiedEmail ?: "") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var rememberMe by remember { mutableStateOf(true) }
     var localError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(unverifiedEmail) {
+        if (!unverifiedEmail.isNullOrBlank() && email.isBlank()) {
+            email = unverifiedEmail
+        }
+    }
+
+    LaunchedEffect(authState) {
+        if (authState is AuthState.EmailNotVerified && authState.email.isNotBlank() && email.isBlank()) {
+            email = authState.email
+        } else if (authState is AuthState.RegistrationSuccess && authState.email.isNotBlank() && email.isBlank()) {
+            email = authState.email
+        }
+    }
 
     val isLoading = authState is AuthState.Loading
     val serverError = (authState as? AuthState.Error)?.message
@@ -208,6 +231,228 @@ fun SignInScreen(
                             color = TextSecondary,
                             fontSize = 11.sp,
                             lineHeight = 15.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        // Email Verification Required Banner
+        if (authState is AuthState.EmailNotVerified) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("sign_in_email_not_verified_card"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = AccentAmber.copy(alpha = 0.12f)),
+                    border = CardDefaults.outlinedCardBorder().copy(
+                        brush = Brush.horizontalGradient(listOf(AccentAmber, AccentAmber.copy(alpha = 0.7f)))
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(AccentAmber.copy(alpha = 0.25f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = "Email Verification Required",
+                                    tint = AccentAmber,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Email Verification Required",
+                                    color = AccentAmber,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = authState.message,
+                                    color = TextSecondary,
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+
+                        // Resend Verification Email Button
+                        Button(
+                            onClick = {
+                                val targetEmail = if (email.isNotBlank()) email.trim() else authState.email
+                                val targetPass = if (password.isNotBlank()) password.trim() else null
+                                onResendVerification(targetEmail, targetPass)
+                            },
+                            enabled = !isResendingEmail,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .testTag("sign_in_resend_verification_button"),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AccentAmber,
+                                contentColor = DarkBg
+                            )
+                        ) {
+                            if (isResendingEmail) {
+                                CircularProgressIndicator(
+                                    color = DarkBg,
+                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Sending Verification Email...",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Send,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Resend Verification Email",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Registration Success Banner (Verification link sent)
+        if (authState is AuthState.RegistrationSuccess) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("sign_in_registration_success_card"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = AccentEmerald.copy(alpha = 0.12f)),
+                    border = CardDefaults.outlinedCardBorder().copy(
+                        brush = Brush.horizontalGradient(listOf(AccentEmerald, AccentEmerald.copy(alpha = 0.7f)))
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Verification Sent",
+                                tint = AccentEmerald,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Account Created! Verification Email Sent",
+                                    color = AccentEmerald,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = authState.message,
+                                    color = TextSecondary,
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                val targetEmail = if (email.isNotBlank()) email.trim() else authState.email
+                                val targetPass = if (password.isNotBlank()) password.trim() else null
+                                onResendVerification(targetEmail, targetPass)
+                            },
+                            enabled = !isResendingEmail,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .testTag("sign_in_resend_from_reg_button"),
+                            shape = RoundedCornerShape(8.dp),
+                            border = ButtonDefaults.outlinedButtonBorder.copy(
+                                brush = Brush.horizontalGradient(listOf(AccentEmerald, AccentEmerald))
+                            ),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentEmerald)
+                        ) {
+                            if (isResendingEmail) {
+                                CircularProgressIndicator(
+                                    color = AccentEmerald,
+                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Sending...", fontSize = 12.sp)
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Didn't receive email? Resend", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Verification Email Sent Banner
+        if (authState is AuthState.VerificationEmailSent) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("sign_in_verification_sent_card"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = NeonCyan.copy(alpha = 0.12f)),
+                    border = CardDefaults.outlinedCardBorder().copy(
+                        brush = Brush.horizontalGradient(listOf(NeonCyan, NeonCyan.copy(alpha = 0.6f)))
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Success",
+                            tint = NeonCyan,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = authState.message,
+                            color = NeonCyan,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }

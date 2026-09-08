@@ -95,6 +95,7 @@ import com.example.ui.components.ImportDialog
 import com.example.ui.components.UserProfileDialog
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.DashboardScreen
+import com.example.ui.screens.GameDatabaseScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StatisticsScreen
@@ -116,6 +117,7 @@ import kotlinx.coroutines.launch
 fun getDestinationIcon(dest: NavDestination): ImageVector {
     return when (dest) {
         NavDestination.DASHBOARD -> Icons.Filled.Home
+        NavDestination.GAME_DATABASE -> Icons.Outlined.Search
         NavDestination.LIBRARY -> Icons.Filled.SportsEsports
         NavDestination.COMPLETED -> Icons.Filled.CheckCircle
         NavDestination.PLAYING -> Icons.Filled.PlayCircle
@@ -145,6 +147,8 @@ fun MainScreen(viewModel: GameVaultViewModel) {
 
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val authState by viewModel.authState.collectAsStateWithLifecycle()
+    val unverifiedEmail by viewModel.unverifiedEmail.collectAsStateWithLifecycle()
+    val isResendingEmail by viewModel.isResendingEmail.collectAsStateWithLifecycle()
     val isAuthModalOpen by viewModel.isAuthModalOpen.collectAsStateWithLifecycle()
     val authModalInitialTab by viewModel.authModalInitialTab.collectAsStateWithLifecycle()
     val isProfileModalOpen by viewModel.isProfileModalOpen.collectAsStateWithLifecycle()
@@ -380,6 +384,8 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                             currentUser = currentUser,
                             authState = authState,
                             authModalInitialTab = authModalInitialTab,
+                            unverifiedEmail = unverifiedEmail,
+                            isResendingEmail = isResendingEmail,
                             isCloudSyncing = isCloudSyncing,
                             lastCloudSyncTimestamp = lastCloudSyncTimestamp,
                             allGames = allGames,
@@ -701,9 +707,9 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                         ) {
                             val bottomNavItems = listOf(
                                 NavDestination.DASHBOARD,
+                                NavDestination.GAME_DATABASE,
                                 NavDestination.LIBRARY,
                                 NavDestination.COMPLETED,
-                                NavDestination.STATISTICS,
                                 NavDestination.AUTH
                             )
 
@@ -797,6 +803,8 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                 currentUser = currentUser,
                                 authState = authState,
                                 authModalInitialTab = authModalInitialTab,
+                                unverifiedEmail = unverifiedEmail,
+                                isResendingEmail = isResendingEmail,
                                 isCloudSyncing = isCloudSyncing,
                                 lastCloudSyncTimestamp = lastCloudSyncTimestamp,
                                 allGames = allGames,
@@ -893,12 +901,15 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                 authState = authState,
                 isFirebaseConfigured = viewModel.isFirebaseConfigured,
                 initialTab = authModalInitialTab,
+                unverifiedEmail = unverifiedEmail,
+                isResendingEmail = isResendingEmail,
                 onDismiss = { viewModel.closeAuthModal() },
                 onSignIn = { email, pass, rememberMe -> viewModel.signIn(email, pass, rememberMe) },
                 onSignUp = { name, email, pass, confirm, tag, rememberMe ->
                     viewModel.signUp(name, email, pass, confirm, tag, rememberMe)
                 },
-                onForgotPassword = { email -> viewModel.sendPasswordReset(email) }
+                onForgotPassword = { email -> viewModel.sendPasswordReset(email) },
+                onResendVerification = { email, pass -> viewModel.resendVerificationEmail(email, pass) }
             )
         }
 
@@ -927,6 +938,8 @@ fun ScreenRouter(
     currentUser: UserProfile?,
     authState: com.example.data.repository.AuthState,
     authModalInitialTab: com.example.ui.components.AuthTab,
+    unverifiedEmail: String? = null,
+    isResendingEmail: Boolean = false,
     isCloudSyncing: Boolean,
     lastCloudSyncTimestamp: Long?,
     allGames: List<com.example.data.model.Game>,
@@ -938,12 +951,53 @@ fun ScreenRouter(
 ) {
     when (destination) {
         NavDestination.DASHBOARD -> {
+            val masterGames by viewModel.filteredMasterGames.collectAsStateWithLifecycle()
             DashboardScreen(
                 stats = stats,
+                featuredDatabaseGames = masterGames,
                 onNavigate = { viewModel.navigateTo(it) },
                 onGameClick = { viewModel.openGameDetails(it) },
                 onToggleFavorite = { viewModel.toggleFavorite(it) },
-                onAddGame = { viewModel.openAddGame() }
+                onAddGame = { viewModel.openAddGame() },
+                onSearchDatabase = { query ->
+                    viewModel.setMasterSearchQuery(query)
+                },
+                onAddMasterGameToVault = { game, status ->
+                    viewModel.addMasterGameToVault(game, status)
+                },
+                isGameInVault = { viewModel.isGameInVault(it) }
+            )
+        }
+
+        NavDestination.GAME_DATABASE -> {
+            val masterGames by viewModel.filteredMasterGames.collectAsStateWithLifecycle()
+            val masterSearchQuery by viewModel.masterDbSearchQuery.collectAsStateWithLifecycle()
+            val selectedMasterPlatform by viewModel.selectedMasterPlatform.collectAsStateWithLifecycle()
+            val selectedMasterGenre by viewModel.selectedMasterGenre.collectAsStateWithLifecycle()
+            val isMasterDbLoading by viewModel.isMasterDbLoading.collectAsStateWithLifecycle()
+            val isMasterDbSyncing by viewModel.isMasterDbSyncing.collectAsStateWithLifecycle()
+            val masterDbStatusMessage by viewModel.masterDbStatusMessage.collectAsStateWithLifecycle()
+
+            GameDatabaseScreen(
+                masterGames = masterGames,
+                searchQuery = masterSearchQuery,
+                selectedPlatform = selectedMasterPlatform,
+                selectedGenre = selectedMasterGenre,
+                isLoading = isMasterDbLoading,
+                isSyncing = isMasterDbSyncing,
+                statusMessage = masterDbStatusMessage,
+                onSearchChange = { viewModel.setMasterSearchQuery(it) },
+                onPlatformChange = { viewModel.setMasterPlatformFilter(it) },
+                onGenreChange = { viewModel.setMasterGenreFilter(it) },
+                onRefresh = { viewModel.loadMasterGameDatabase() },
+                onSyncToFirestore = { viewModel.syncMasterCatalogToFirestore() },
+                onAddToVault = { game, status -> viewModel.addMasterGameToVault(game, status) },
+                isGameInVault = { viewModel.isGameInVault(it) },
+                getVaultGame = { viewModel.getVaultGame(it) },
+                onOpenVaultGame = {
+                    viewModel.navigateTo(NavDestination.LIBRARY)
+                    viewModel.openGameDetails(it)
+                }
             )
         }
 
@@ -1063,12 +1117,15 @@ fun ScreenRouter(
                 lastSyncTimestamp = lastCloudSyncTimestamp,
                 totalLocalGames = allGames.size,
                 initialTab = authModalInitialTab,
+                unverifiedEmail = unverifiedEmail,
+                isResendingEmail = isResendingEmail,
                 onSignIn = { email, pass, rem -> viewModel.signIn(email, pass, rem) },
                 onSignUp = { name, email, pass, conf, tag, rem ->
                     viewModel.signUp(name, email, pass, conf, tag, rem)
                 },
                 onForgotPassword = { email -> viewModel.sendPasswordReset(email) },
                 onSendVerificationEmail = { viewModel.sendEmailVerification() },
+                onResendVerificationEmail = { email, pass -> viewModel.resendVerificationEmail(email, pass) },
                 onRefreshVerification = { viewModel.refreshUserVerification() },
                 onUpdateProfile = { name, tag, photoUrl ->
                     viewModel.updateUserProfile(name, tag, photoUrl)
