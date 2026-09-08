@@ -32,7 +32,8 @@ enum class NavDestination(val title: String, val iconName: String) {
     BACKLOG("Backlog", "menu_book"),
     FAVORITES("Favorites", "star"),
     STATISTICS("Statistics", "bar_chart"),
-    SETTINGS("Settings", "settings")
+    SETTINGS("Settings", "settings"),
+    AUTH("Account", "account_circle")
 }
 
 enum class SortOption(val displayName: String) {

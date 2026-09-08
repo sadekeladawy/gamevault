@@ -93,6 +93,7 @@ import com.example.ui.components.ExportDialog
 import com.example.ui.components.GameDetailDialog
 import com.example.ui.components.ImportDialog
 import com.example.ui.components.UserProfileDialog
+import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.SettingsScreen
@@ -122,6 +123,7 @@ fun getDestinationIcon(dest: NavDestination): ImageVector {
         NavDestination.FAVORITES -> Icons.Filled.Favorite
         NavDestination.STATISTICS -> Icons.Filled.BarChart
         NavDestination.SETTINGS -> Icons.Filled.Settings
+        NavDestination.AUTH -> Icons.Filled.AccountCircle
     }
 }
 
@@ -287,7 +289,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
                                     .border(1.dp, DarkCardBorder, RoundedCornerShape(12.dp))
-                                    .clickable { viewModel.openProfileModal() }
+                                    .clickable { viewModel.navigateTo(NavDestination.AUTH) }
                                     .testTag("sidebar_user_profile"),
                                 color = DarkCard
                             ) {
@@ -342,7 +344,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                             }
                         } else {
                             OutlinedButton(
-                                onClick = { viewModel.openAuthModal() },
+                                onClick = { viewModel.navigateTo(NavDestination.AUTH) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(40.dp)
@@ -376,6 +378,8 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                             destination = currentDestination,
                             viewModel = viewModel,
                             currentUser = currentUser,
+                            authState = authState,
+                            authModalInitialTab = authModalInitialTab,
                             isCloudSyncing = isCloudSyncing,
                             lastCloudSyncTimestamp = lastCloudSyncTimestamp,
                             allGames = allGames,
@@ -515,7 +519,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                         .border(1.dp, DarkCardBorder, RoundedCornerShape(12.dp))
                                         .clickable {
                                             scope.launch { drawerState.close() }
-                                            viewModel.openProfileModal()
+                                            viewModel.navigateTo(NavDestination.AUTH)
                                         }
                                         .testTag("drawer_user_profile"),
                                     color = DarkCard
@@ -573,7 +577,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                 OutlinedButton(
                                     onClick = {
                                         scope.launch { drawerState.close() }
-                                        viewModel.openAuthModal()
+                                        viewModel.navigateTo(NavDestination.AUTH)
                                     },
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -624,7 +628,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                             actions = {
                                 if (currentUser != null) {
                                     IconButton(
-                                        onClick = { viewModel.openProfileModal() },
+                                        onClick = { viewModel.navigateTo(NavDestination.AUTH) },
                                         modifier = Modifier.testTag("app_bar_profile_button")
                                     ) {
                                         Box(
@@ -658,7 +662,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                     }
                                 } else {
                                     TextButton(
-                                        onClick = { viewModel.openAuthModal() },
+                                        onClick = { viewModel.navigateTo(NavDestination.AUTH) },
                                         modifier = Modifier.testTag("app_bar_sign_in_button")
                                     ) {
                                         Icon(
@@ -699,7 +703,8 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                 NavDestination.DASHBOARD,
                                 NavDestination.LIBRARY,
                                 NavDestination.COMPLETED,
-                                NavDestination.STATISTICS
+                                NavDestination.STATISTICS,
+                                NavDestination.AUTH
                             )
 
                             bottomNavItems.forEach { dest ->
@@ -790,6 +795,8 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                 destination = currentDestination,
                                 viewModel = viewModel,
                                 currentUser = currentUser,
+                                authState = authState,
+                                authModalInitialTab = authModalInitialTab,
                                 isCloudSyncing = isCloudSyncing,
                                 lastCloudSyncTimestamp = lastCloudSyncTimestamp,
                                 allGames = allGames,
@@ -918,6 +925,8 @@ fun ScreenRouter(
     destination: NavDestination,
     viewModel: GameVaultViewModel,
     currentUser: UserProfile?,
+    authState: com.example.data.repository.AuthState,
+    authModalInitialTab: com.example.ui.components.AuthTab,
     isCloudSyncing: Boolean,
     lastCloudSyncTimestamp: Long?,
     allGames: List<com.example.data.model.Game>,
@@ -1032,8 +1041,8 @@ fun ScreenRouter(
                 isFirebaseConfigured = viewModel.isFirebaseConfigured,
                 isCloudSyncing = isCloudSyncing,
                 lastSyncTimestamp = lastCloudSyncTimestamp,
-                onOpenAuth = { viewModel.openAuthModal() },
-                onOpenProfile = { viewModel.openProfileModal() },
+                onOpenAuth = { viewModel.navigateTo(NavDestination.AUTH) },
+                onOpenProfile = { viewModel.navigateTo(NavDestination.AUTH) },
                 onSyncToCloud = { viewModel.syncLibraryToCloud() },
                 onRestoreFromCloud = { viewModel.restoreLibraryFromCloud() },
                 onSignOut = { viewModel.signOut() },
@@ -1042,6 +1051,32 @@ fun ScreenRouter(
                 onImportJson = { viewModel.openImportModal() },
                 onResetSampleData = onResetSample,
                 onClearAllData = onClearAll
+            )
+        }
+
+        NavDestination.AUTH -> {
+            AuthScreen(
+                currentUser = currentUser,
+                authState = authState,
+                isFirebaseConfigured = viewModel.isFirebaseConfigured,
+                isCloudSyncing = isCloudSyncing,
+                lastSyncTimestamp = lastCloudSyncTimestamp,
+                totalLocalGames = allGames.size,
+                initialTab = authModalInitialTab,
+                onSignIn = { email, pass, rem -> viewModel.signIn(email, pass, rem) },
+                onSignUp = { name, email, pass, conf, tag, rem ->
+                    viewModel.signUp(name, email, pass, conf, tag, rem)
+                },
+                onForgotPassword = { email -> viewModel.sendPasswordReset(email) },
+                onSendVerificationEmail = { viewModel.sendEmailVerification() },
+                onRefreshVerification = { viewModel.refreshUserVerification() },
+                onUpdateProfile = { name, tag, photoUrl ->
+                    viewModel.updateUserProfile(name, tag, photoUrl)
+                },
+                onSyncToCloud = { viewModel.syncLibraryToCloud() },
+                onRestoreFromCloud = { viewModel.restoreLibraryFromCloud() },
+                onSignOut = { viewModel.signOut() },
+                onNavigateToLibrary = { viewModel.navigateTo(NavDestination.LIBRARY) }
             )
         }
     }
