@@ -14,6 +14,9 @@ interface GameDao {
     @Query("SELECT * FROM games ORDER BY createdAt DESC")
     fun getAllGames(): Flow<List<Game>>
 
+    @Query("SELECT * FROM games WHERE userId = :userId ORDER BY createdAt DESC")
+    fun getGamesForUser(userId: String): Flow<List<Game>>
+
     @Query("SELECT * FROM games WHERE id = :id LIMIT 1")
     fun getGameById(id: Long): Flow<Game?>
 
@@ -35,6 +38,12 @@ interface GameDao {
     @Query("DELETE FROM games")
     suspend fun deleteAllGames()
 
+    @Query("DELETE FROM games WHERE userId = :userId")
+    suspend fun deleteGamesForUser(userId: String)
+
     @Query("SELECT COUNT(*) FROM games")
     suspend fun getGamesCount(): Int
+
+    @Query("SELECT COUNT(*) FROM games WHERE userId = :userId")
+    suspend fun getGamesCountForUser(userId: String): Int
 }

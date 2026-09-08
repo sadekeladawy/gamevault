@@ -188,13 +188,112 @@ class FirestoreRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Saves or updates an individual game under users/{uid}/games/{game.id}.
+     */
+    suspend fun saveUserGame(uid: String, game: Game): Result<Unit> = withContext(Dispatchers.IO) {
+        val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firebase Firestore is not initialized."))
+        try {
+            val userGamesRef = db.collection(USERS_COLLECTION).document(uid).collection(GAMES_SUBCOLLECTION)
+            val docRef = userGamesRef.document(game.id.toString())
+            val gameMap = mapOf(
+                "id" to game.id,
+                "title" to game.title,
+                "coverUrl" to game.coverUrl,
+                "platform" to game.platform,
+                "genre" to game.genre,
+                "releaseYear" to game.releaseYear,
+                "status" to game.status.name,
+                "completionDate" to game.completionDate,
+                "playtimeHours" to game.playtimeHours,
+                "rating" to game.rating,
+                "notes" to game.notes,
+                "isFavorite" to game.isFavorite,
+                "createdAt" to game.createdAt,
+                "userId" to uid,
+                "updatedAt" to System.currentTimeMillis()
+            )
+            docRef.set(gameMap, SetOptions.merge()).awaitTask()
+            Log.d(TAG, "Saved game ${game.id} to users/$uid/games/${game.id}")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving user game under users/$uid/games/${game.id}: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Deletes an individual game document from users/{uid}/games/{gameId}.
+     */
+    suspend fun deleteUserGame(uid: String, gameId: Long): Result<Unit> = withContext(Dispatchers.IO) {
+        val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firebase Firestore is not initialized."))
+        try {
+            db.collection(USERS_COLLECTION).document(uid)
+                .collection(GAMES_SUBCOLLECTION).document(gameId.toString())
+                .delete()
+                .awaitTask()
+            Log.d(TAG, "Deleted game $gameId from users/$uid/games/$gameId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting user game at users/$uid/games/$gameId: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Completely wipes all game documents under users/{uid}/games for this user.
+     */
+    suspend fun clearAllUserGamesInCloud(uid: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firebase Firestore is not initialized."))
+        try {
+            val snapshot = db.collection(USERS_COLLECTION).document(uid)
+                .collection(GAMES_SUBCOLLECTION)
+                .get()
+                .awaitTask()
+
+            if (!snapshot.isEmpty) {
+                val batch = db.batch()
+                for (doc in snapshot.documents) {
+                    batch.delete(doc.reference)
+                }
+                batch.commit().awaitTask()
+            }
+
+            // Reset user counts
+            db.collection(USERS_COLLECTION).document(uid).set(
+                mapOf(
+                    "totalGamesCount" to 0,
+                    "completedGamesCount" to 0,
+                    "lastSyncAt" to System.currentTimeMillis()
+                ),
+                SetOptions.merge()
+            ).awaitTask()
+
+            Log.d(TAG, "Successfully cleared all games in users/$uid/games")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error clearing cloud games for users/$uid: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun syncGamesToCloud(uid: String, games: List<Game>): Result<Int> = withContext(Dispatchers.IO) {
         val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firebase Firestore is not initialized."))
         try {
-            // Write in batches of up to 500 documents (Firestore limit)
-            val batch = db.batch()
             val userGamesRef = db.collection(USERS_COLLECTION).document(uid).collection(GAMES_SUBCOLLECTION)
+            val existingSnapshot = userGamesRef.get().awaitTask()
 
+            val localGameIds = games.map { it.id.toString() }.toSet()
+            val batch = db.batch()
+
+            // Delete remote games that no longer exist locally
+            for (doc in existingSnapshot.documents) {
+                if (doc.id !in localGameIds) {
+                    batch.delete(doc.reference)
+                }
+            }
+
+            // Write / update all current games
             for (game in games) {
                 val docRef = userGamesRef.document(game.id.toString())
                 val gameMap = mapOf(
@@ -211,6 +310,7 @@ class FirestoreRepository(private val context: Context) {
                     "notes" to game.notes,
                     "isFavorite" to game.isFavorite,
                     "createdAt" to game.createdAt,
+                    "userId" to uid,
                     "syncedAt" to System.currentTimeMillis()
                 )
                 batch.set(docRef, gameMap, SetOptions.merge())
@@ -229,9 +329,10 @@ class FirestoreRepository(private val context: Context) {
                 SetOptions.merge()
             ).awaitTask()
 
+            Log.d(TAG, "Synced ${games.size} games to users/$uid/games")
             Result.success(games.size)
         } catch (e: Exception) {
-            Log.e(TAG, "Error syncing games to cloud: ${e.message}", e)
+            Log.e(TAG, "Error syncing games to cloud for users/$uid: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -260,13 +361,15 @@ class FirestoreRepository(private val context: Context) {
                     rating = (data["rating"] as? Number)?.toInt() ?: 0,
                     notes = data["notes"] as? String ?: "",
                     isFavorite = data["isFavorite"] as? Boolean ?: false,
-                    createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+                    createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+                    userId = uid
                 )
                 list.add(game)
             }
+            Log.d(TAG, "Fetched ${list.size} games from users/$uid/games")
             Result.success(list)
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching games from cloud: ${e.message}", e)
+            Log.e(TAG, "Error fetching games from cloud for users/$uid: ${e.message}", e)
             Result.failure(e)
         }
     }
