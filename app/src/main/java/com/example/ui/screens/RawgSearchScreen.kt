@@ -638,14 +638,14 @@ fun RawgGameCardItem(
                     }
                 }
 
-                // Platforms or Genres chips
+                // Genres chips
                 if (!game.genres.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        game.genres.take(3).forEach { genreDto ->
+                        game.genres.take(4).forEach { genreDto ->
                             val genreName = genreDto.name ?: return@forEach
                             Box(
                                 modifier = Modifier
@@ -657,6 +657,33 @@ fun RawgGameCardItem(
                                     text = genreName,
                                     color = TextSecondary,
                                     fontSize = 10.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Platforms chips
+                val platformNames = game.platforms?.mapNotNull { it.platform?.name }
+                if (!platformNames.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        platformNames.take(4).forEach { platformName ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(CyberPurple.copy(alpha = 0.18f))
+                                    .border(0.5.dp, CyberPurple.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = platformName,
+                                    color = NeonCyan,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }

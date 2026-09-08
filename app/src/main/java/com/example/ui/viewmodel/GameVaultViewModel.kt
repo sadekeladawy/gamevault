@@ -924,7 +924,7 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         _rawgErrorMessage.value = null
         _hasSearchedRawg.value = true
 
-        val result = rawgRepository.searchGames(query)
+        val result = repository.searchRawgGames(query)
         _isRawgLoading.value = false
         result.onSuccess { games ->
             _rawgSearchResults.value = games

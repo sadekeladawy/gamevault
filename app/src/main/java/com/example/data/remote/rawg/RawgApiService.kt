@@ -14,4 +14,14 @@ interface RawgApiService {
         @Query("search") search: String,
         @Query("page_size") pageSize: Int = 25
     ): RawgSearchResponse
+
+    /**
+     * Fetch games from RAWG Video Games Database API with optional ordering.
+     */
+    @GET("api/games")
+    suspend fun getGames(
+        @Query("key") apiKey: String,
+        @Query("page_size") pageSize: Int = 25,
+        @Query("ordering") ordering: String = "-rating"
+    ): RawgSearchResponse
 }
