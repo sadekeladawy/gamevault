@@ -7,13 +7,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
-import com.example.data.model.MasterGame
 import com.example.data.model.UserProfile
 import com.example.data.repository.AuthRepository
 import com.example.data.repository.AuthState
 import com.example.data.repository.FirestoreRepository
 import com.example.data.repository.GameRepository
-import com.example.data.sample.MasterGameCatalog
 import com.example.data.sample.SampleGames
 import com.example.data.remote.rawg.RawgApiClient
 import com.example.data.remote.rawg.RawgGameDto
@@ -35,7 +33,7 @@ import java.util.Calendar
 
 enum class NavDestination(val title: String, val iconName: String) {
     DASHBOARD("Dashboard", "home"),
-    GAME_DATABASE("Game Database", "search"),
+    GAME_DATABASE("Search", "search"),
     LIBRARY("My Games", "sports_esports"),
     COMPLETED("Completed", "check_circle"),
     PLAYING("Currently Playing", "play_circle"),
@@ -143,30 +141,6 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
 
     val stats: StateFlow<VaultStats>
 
-    // --- Firestore Master Game Database ---
-    private val _masterGames = MutableStateFlow<List<MasterGame>>(MasterGameCatalog.defaultCatalog)
-    val masterGames: StateFlow<List<MasterGame>> = _masterGames.asStateFlow()
-
-    private val _masterDbSearchQuery = MutableStateFlow("")
-    val masterDbSearchQuery: StateFlow<String> = _masterDbSearchQuery.asStateFlow()
-
-    private val _selectedMasterPlatform = MutableStateFlow<String?>(null)
-    val selectedMasterPlatform: StateFlow<String?> = _selectedMasterPlatform.asStateFlow()
-
-    private val _selectedMasterGenre = MutableStateFlow<String?>(null)
-    val selectedMasterGenre: StateFlow<String?> = _selectedMasterGenre.asStateFlow()
-
-    private val _isMasterDbLoading = MutableStateFlow(false)
-    val isMasterDbLoading: StateFlow<Boolean> = _isMasterDbLoading.asStateFlow()
-
-    private val _isMasterDbSyncing = MutableStateFlow(false)
-    val isMasterDbSyncing: StateFlow<Boolean> = _isMasterDbSyncing.asStateFlow()
-
-    private val _masterDbStatusMessage = MutableStateFlow<String?>("Connected to Firestore games_database")
-    val masterDbStatusMessage: StateFlow<String?> = _masterDbStatusMessage.asStateFlow()
-
-    val filteredMasterGames: StateFlow<List<MasterGame>>
-
     // --- RAWG Video Games API Integration ---
     private val rawgRepository: RawgRepository = RawgRepository()
 
@@ -175,6 +149,12 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _rawgSearchResults = MutableStateFlow<List<RawgGameDto>>(emptyList())
     val rawgSearchResults: StateFlow<List<RawgGameDto>> = _rawgSearchResults.asStateFlow()
+
+    private val _popularRawgGames = MutableStateFlow<List<RawgGameDto>>(emptyList())
+    val popularRawgGames: StateFlow<List<RawgGameDto>> = _popularRawgGames.asStateFlow()
+
+    private val _isPopularRawgLoading = MutableStateFlow(false)
+    val isPopularRawgLoading: StateFlow<Boolean> = _isPopularRawgLoading.asStateFlow()
 
     private val _isRawgLoading = MutableStateFlow(false)
     val isRawgLoading: StateFlow<Boolean> = _isRawgLoading.asStateFlow()
@@ -287,32 +267,7 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
             initialValue = VaultStats()
         )
 
-        // Filter master game database
-        filteredMasterGames = combine(
-            _masterGames,
-            _masterDbSearchQuery,
-            _selectedMasterPlatform,
-            _selectedMasterGenre
-        ) { games, query, platform, genre ->
-            games.filter { game ->
-                val matchesQuery = query.isBlank() ||
-                    game.title.contains(query, ignoreCase = true) ||
-                    game.genre.contains(query, ignoreCase = true) ||
-                    game.developer.contains(query, ignoreCase = true) ||
-                    game.publisher.contains(query, ignoreCase = true) ||
-                    game.platform.contains(query, ignoreCase = true) ||
-                    game.platforms.any { it.contains(query, ignoreCase = true) }
-                val matchesPlatform = platform == null || game.platform.equals(platform, ignoreCase = true) || game.platforms.any { it.equals(platform, ignoreCase = true) }
-                val matchesGenre = genre == null || game.genre.equals(genre, ignoreCase = true)
-                matchesQuery && matchesPlatform && matchesGenre
-            }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = MasterGameCatalog.defaultCatalog
-        )
-
-        loadMasterGameDatabase()
+        loadPopularRawgGames()
     }
 
     private suspend fun handleUserSessionChanged(user: UserProfile?) {
@@ -908,79 +863,32 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    // --- Master Game Database Actions ---
+    // --- RAWG Video Games Discovery & Autocomplete ---
 
-    fun setMasterSearchQuery(query: String) {
-        _masterDbSearchQuery.value = query
-    }
-
-    fun setMasterPlatformFilter(platform: String?) {
-        _selectedMasterPlatform.value = platform
-    }
-
-    fun setMasterGenreFilter(genre: String?) {
-        _selectedMasterGenre.value = genre
-    }
-
-    fun loadMasterGameDatabase() {
+    fun loadPopularRawgGames() {
         viewModelScope.launch {
-            _isMasterDbLoading.value = true
-            val result = firestoreRepository.fetchMasterGameDatabase()
-            _isMasterDbLoading.value = false
-            result.onSuccess { cloudGames ->
-                if (cloudGames.isNotEmpty()) {
-                    val existingTitles = cloudGames.map { it.title.lowercase().trim() }.toSet()
-                    val combined = cloudGames.toMutableList()
-                    MasterGameCatalog.defaultCatalog.forEach { defaultGame ->
-                        if (!existingTitles.contains(defaultGame.title.lowercase().trim())) {
-                            combined.add(defaultGame)
-                        }
-                    }
-                    _masterGames.value = combined
-                    _masterDbStatusMessage.value = "Firestore Database Active (${cloudGames.size} cloud records synced)"
-                } else {
-                    _masterGames.value = MasterGameCatalog.defaultCatalog
-                    _masterDbStatusMessage.value = "Firestore Database Ready (${MasterGameCatalog.defaultCatalog.size} catalog games)"
-                }
-            }.onFailure { err ->
-                _masterGames.value = MasterGameCatalog.defaultCatalog
-                _masterDbStatusMessage.value = "Catalog Ready (${MasterGameCatalog.defaultCatalog.size} games, Offline Mode)"
+            _isPopularRawgLoading.value = true
+            val result = repository.getTopRawgGames(pageSize = 12)
+            _isPopularRawgLoading.value = false
+            result.onSuccess { games ->
+                _popularRawgGames.value = games
+            }.onFailure {
+                _popularRawgGames.value = emptyList()
             }
         }
     }
 
-    fun syncMasterCatalogToFirestore() {
-        viewModelScope.launch {
-            _isMasterDbSyncing.value = true
-            val result = firestoreRepository.seedMasterGameDatabase(MasterGameCatalog.defaultCatalog)
-            _isMasterDbSyncing.value = false
-            result.onSuccess { count ->
-                _masterDbStatusMessage.value = "Successfully synced $count games to Firestore games_database"
-                _snackbarMessage.emit("Uploaded $count curated games to Firestore collection \"games_database\"!")
-                loadMasterGameDatabase()
-            }.onFailure { err ->
-                _masterDbStatusMessage.value = "Firestore upload note: ${err.localizedMessage}"
-                _snackbarMessage.emit("Cloud sync: ${err.localizedMessage}")
-            }
-        }
-    }
-
-    fun addMasterGameToVault(masterGame: MasterGame, status: GameStatus = GameStatus.BACKLOG, rating: Int = 0) {
-        val user = currentUser.value
-        val uid = user?.uid ?: ""
-        viewModelScope.launch {
-            val exists = allGames.value.any { it.title.equals(masterGame.title, ignoreCase = true) }
-            if (exists) {
-                _snackbarMessage.emit("\"${masterGame.title}\" is already in your Vault!")
-                return@launch
-            }
-            val newGame = masterGame.toGame(status = status, rating = rating).copy(userId = uid)
-            val newId = repository.insertGame(newGame)
-            val savedGame = newGame.copy(id = newId)
-            if (uid.isNotBlank()) {
-                firestoreRepository.saveUserGame(uid, savedGame)
-            }
-            _snackbarMessage.emit("Added \"${masterGame.title}\" to your Vault (${status.displayName})!")
+    /**
+     * Performs a fast live search for autocomplete in Add / Edit dialog.
+     */
+    suspend fun searchRawgAutocomplete(query: String): List<RawgGameDto> {
+        val trimmed = query.trim()
+        if (trimmed.length < 2) return emptyList()
+        return try {
+            val result = repository.searchRawgGames(trimmed, pageSize = 8)
+            result.getOrDefault(emptyList())
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 

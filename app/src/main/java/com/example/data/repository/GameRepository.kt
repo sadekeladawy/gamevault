@@ -51,7 +51,7 @@ class GameRepository(
     /**
      * Searches RAWG Video Games Database via live REST network request.
      */
-    suspend fun searchRawgGames(query: String): Result<List<RawgGameDto>> = withContext(Dispatchers.IO) {
+    suspend fun searchRawgGames(query: String, pageSize: Int = 25): Result<List<RawgGameDto>> = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) {
             return@withContext Result.success(emptyList())
@@ -62,7 +62,7 @@ class GameRepository(
             val response = rawgApiService.searchGames(
                 apiKey = rawgApiKey,
                 search = trimmed,
-                pageSize = 25
+                pageSize = pageSize
             )
             val results = response.results ?: emptyList()
             Log.d(TAG, "RAWG API search succeeded with ${results.size} games")
@@ -101,6 +101,8 @@ class GameRepository(
             Result.failure(e)
         }
     }
+
+    suspend fun getTopRawgGames(pageSize: Int = 20): Result<List<RawgGameDto>> = fetchPopularRawgGames(pageSize)
 
     suspend fun updateStatus(game: Game, newStatus: GameStatus, completionDate: String? = null) = withContext(Dispatchers.IO) {
         val updated = game.copy(

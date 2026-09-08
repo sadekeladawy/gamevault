@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -22,17 +24,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,8 +51,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import com.example.data.sample.MasterGameCatalog
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -56,31 +63,39 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
+import com.example.data.remote.rawg.RawgGameDto
 import com.example.ui.theme.AccentAmber
+import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.AccentRose
 import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
-import com.example.ui.theme.DarkCardHover
+import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 val CommonPlatforms = listOf("PC", "PlayStation 5", "Xbox Series X", "Nintendo Switch", "Steam Deck", "PlayStation 4", "Retro")
 val CommonGenres = listOf("Action RPG", "Open World", "Action Adventure", "Metroidvania", "Roguelike", "CRPG", "JRPG", "Shooter", "Survival Horror", "Indie", "Strategy")
@@ -90,6 +105,7 @@ val CommonGenres = listOf("Action RPG", "Open World", "Action Adventure", "Metro
 fun AddEditGameDialog(
     game: Game? = null,
     onDismiss: () -> Unit,
+    onSearchRawg: suspend (String) -> List<RawgGameDto> = { emptyList() },
     onSave: (
         id: Long,
         title: String,
@@ -110,9 +126,7 @@ fun AddEditGameDialog(
     var title by remember { mutableStateOf(game?.title ?: "") }
     var coverUrl by remember { mutableStateOf(game?.coverUrl ?: "") }
     var platform by remember { mutableStateOf(game?.platform ?: "PC") }
-    var customPlatform by remember { mutableStateOf("") }
     var genre by remember { mutableStateOf(game?.genre ?: "Action RPG") }
-    var customGenre by remember { mutableStateOf("") }
     var releaseYearStr by remember { mutableStateOf(game?.releaseYear?.toString() ?: Calendar.getInstance().get(Calendar.YEAR).toString()) }
     var status by remember { mutableStateOf(game?.status ?: GameStatus.BACKLOG) }
     var completionDate by remember {
@@ -125,7 +139,62 @@ fun AddEditGameDialog(
     var notes by remember { mutableStateOf(game?.notes ?: "") }
     var isFavorite by remember { mutableStateOf(game?.isFavorite ?: false) }
 
+    // Live autocomplete search states
+    var suggestions by remember { mutableStateOf<List<RawgGameDto>>(emptyList()) }
+    var isSearchingSuggestions by remember { mutableStateOf(false) }
+    var showSuggestionsDropdown by remember { mutableStateOf(false) }
+    var isSelectedFromRawg by remember { mutableStateOf(isEditing && game?.coverUrl?.isNotBlank() == true) }
+    var isCustomGameMode by remember { mutableStateOf(isEditing && game?.coverUrl.isNullOrBlank()) }
+    var lastSelectedTitle by remember { mutableStateOf(game?.title ?: "") }
     var titleError by remember { mutableStateOf(false) }
+
+    // Live search debounced at 450ms (400-500ms)
+    LaunchedEffect(title) {
+        if (isEditing) return@LaunchedEffect
+        if (isSelectedFromRawg && title.equals(lastSelectedTitle, ignoreCase = true)) {
+            return@LaunchedEffect
+        }
+        val query = title.trim()
+        if (query.length >= 2 && !isCustomGameMode) {
+            delay(450)
+            isSearchingSuggestions = true
+            showSuggestionsDropdown = true
+            val results = onSearchRawg(query)
+            suggestions = results
+            isSearchingSuggestions = false
+        } else {
+            suggestions = emptyList()
+            isSearchingSuggestions = false
+            showSuggestionsDropdown = false
+        }
+    }
+
+    fun selectSuggestion(item: RawgGameDto) {
+        title = item.name
+        lastSelectedTitle = item.name
+        coverUrl = item.backgroundImage ?: ""
+        val year = item.released?.take(4)?.toIntOrNull() ?: Calendar.getInstance().get(Calendar.YEAR)
+        releaseYearStr = year.toString()
+
+        val genreList = item.genres?.mapNotNull { it.name } ?: emptyList()
+        genre = if (genreList.isNotEmpty()) genreList.joinToString(", ") else "Action"
+
+        val platformList = item.platforms?.mapNotNull { it.platform?.name } ?: emptyList()
+        platform = if (platformList.isNotEmpty()) platformList.first() else "PC"
+
+        val calculatedRating = item.rating?.let { ((it * 2.0).roundToInt()).coerceIn(1, 10) } ?: 0
+        rating = calculatedRating
+
+        if (item.playtime != null && item.playtime > 0) {
+            playtimeHours = item.playtime.toDouble()
+        }
+
+        isSelectedFromRawg = true
+        isCustomGameMode = false
+        showSuggestionsDropdown = false
+        suggestions = emptyList()
+        titleError = false
+    }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = CyberPurple,
@@ -161,12 +230,19 @@ fun AddEditGameDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = if (isEditing) "Edit Game" else "Add New Game",
-                        color = TextPrimary,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column {
+                        Text(
+                            text = if (isEditing) "Edit Game" else "Add to Vault",
+                            color = TextPrimary,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isCustomGameMode) "Custom Game Entry" else "Search RAWG API database",
+                            color = if (isCustomGameMode) NeonCyan else TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
 
                     IconButton(
                         onClick = onDismiss,
@@ -188,25 +264,75 @@ fun AddEditGameDialog(
                         .weight(1f)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    // Title Field
-                    Text(
-                        text = "GAME TITLE *",
-                        color = TextMuted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    // Game Title Field (Autocomplete live search)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "GAME TITLE *",
+                            color = TextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (!isEditing && !isCustomGameMode && isSelectedFromRawg) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = AccentEmerald.copy(alpha = 0.15f)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = AccentEmerald,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "RAWG Verified",
+                                        color = AccentEmerald,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(6.dp))
+
                     OutlinedTextField(
                         value = title,
                         onValueChange = {
                             title = it
                             if (it.isNotBlank()) titleError = false
+                            if (isSelectedFromRawg && !it.equals(lastSelectedTitle, ignoreCase = true)) {
+                                isSelectedFromRawg = false
+                            }
                         },
-                        placeholder = { Text("e.g. Elden Ring, Baldur's Gate 3", color = TextMuted) },
+                        placeholder = {
+                            Text(
+                                if (isCustomGameMode) "Enter game title..." else "Type 2+ letters to search RAWG...",
+                                color = TextMuted
+                            )
+                        },
                         isError = titleError,
                         supportingText = if (titleError) {
                             { Text("Title is required", color = AccentRose) }
                         } else null,
+                        trailingIcon = {
+                            if (isSearchingSuggestions) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    color = NeonCyan,
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        },
                         singleLine = true,
                         colors = textFieldColors,
                         shape = RoundedCornerShape(12.dp),
@@ -215,52 +341,170 @@ fun AddEditGameDialog(
                             .testTag("input_game_title")
                     )
 
-                    if (!isEditing && title.length >= 2) {
-                        val matchingCatalog = MasterGameCatalog.defaultCatalog.filter {
-                            it.title.contains(title, ignoreCase = true)
-                        }.take(3)
-                        if (matchingCatalog.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "MATCHED IN GAME DATABASE (TAP TO AUTOFILL):",
-                                color = NeonCyan,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                matchingCatalog.forEach { master ->
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = DarkCardHover,
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, CyberPurple.copy(alpha = 0.5f)),
+                    // Autocomplete Suggestions Dropdown directly below Title field
+                    if (!isEditing && showSuggestionsDropdown && !isCustomGameMode) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = DarkCard),
+                            border = BorderStroke(1.dp, CyberPurple.copy(alpha = 0.6f))
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                if (isSearchingSuggestions) {
+                                    Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clickable {
-                                                title = master.title
-                                                coverUrl = master.coverUrl
-                                                platform = master.platform
-                                                genre = master.genre
-                                                releaseYearStr = master.releaseYear.toString()
-                                                if (notes.isBlank()) notes = master.description
-                                            }
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            color = NeonCyan,
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Searching RAWG live database...",
+                                            color = TextSecondary,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                } else if (suggestions.isNotEmpty()) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "RAWG SUGGESTIONS (TAP TO AUTOFILL)",
+                                            color = NeonCyan,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "${suggestions.size} found",
+                                            color = TextMuted,
+                                            fontSize = 10.sp
+                                        )
+                                    }
+
+                                    suggestions.take(5).forEachIndexed { index, gameSuggestion ->
+                                        if (index > 0) {
+                                            HorizontalDivider(
+                                                color = DarkCardBorder.copy(alpha = 0.5f),
+                                                thickness = 0.5.dp
+                                            )
+                                        }
                                         Row(
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { selectSuggestion(gameSuggestion) }
+                                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                                .testTag("rawg_suggestion_${gameSuggestion.id}"),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Cloud,
-                                                contentDescription = null,
-                                                tint = NeonCyan,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
+                                            // Cover image
+                                            if (!gameSuggestion.backgroundImage.isNullOrBlank()) {
+                                                AsyncImage(
+                                                    model = gameSuggestion.backgroundImage,
+                                                    contentDescription = gameSuggestion.name,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier
+                                                        .size(44.dp)
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(DarkSurface)
+                                                )
+                                            } else {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(44.dp)
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(DarkSurface),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.SportsEsports,
+                                                        contentDescription = null,
+                                                        tint = TextMuted,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.width(10.dp))
+
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = gameSuggestion.name,
+                                                    color = TextPrimary,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 13.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    val year = gameSuggestion.released?.take(4) ?: "TBA"
+                                                    Text(
+                                                        text = year,
+                                                        color = TextMuted,
+                                                        fontSize = 11.sp
+                                                    )
+                                                    val ratingScore = gameSuggestion.rating ?: 0.0
+                                                    if (ratingScore > 0.0) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Icon(
+                                                                imageVector = Icons.Filled.Star,
+                                                                contentDescription = null,
+                                                                tint = AccentAmber,
+                                                                modifier = Modifier.size(11.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(2.dp))
+                                                            Text(
+                                                                text = String.format(Locale.US, "%.1f", ratingScore),
+                                                                color = AccentAmber,
+                                                                fontSize = 11.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if (title.trim().length >= 2 && !isSelectedFromRawg) {
+                                    // No matching game found on RAWG -> allow manual custom game
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp)
+                                    ) {
+                                        Text(
+                                            text = "No matching games found on RAWG API.",
+                                            color = TextSecondary,
+                                            fontSize = 12.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        TextButton(
+                                            onClick = {
+                                                isCustomGameMode = true
+                                                showSuggestionsDropdown = false
+                                                isSelectedFromRawg = false
+                                            },
+                                            contentPadding = PaddingValues(0.dp)
+                                        ) {
                                             Text(
-                                                text = "${master.title} • ${master.genre} (${master.releaseYear})",
-                                                color = TextPrimary,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Medium
+                                                text = "Create as custom game instead",
+                                                color = NeonCyan,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
                                             )
                                         }
                                     }
@@ -269,31 +513,263 @@ fun AddEditGameDialog(
                         }
                     }
 
+                    // Cover Image Preview Card (Manual input hidden as required)
+                    if (coverUrl.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(130.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .border(1.dp, CyberPurple.copy(alpha = 0.5f), RoundedCornerShape(14.dp)),
+                            colors = CardDefaults.cardColors(containerColor = DarkSurface)
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                AsyncImage(
+                                    model = coverUrl,
+                                    contentDescription = title,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colors = listOf(Color.Transparent, DarkBg.copy(alpha = 0.85f))
+                                            )
+                                        )
+                                    )
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(8.dp),
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = CyberPurple.copy(alpha = 0.85f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Public,
+                                            contentDescription = null,
+                                            tint = NeonCyan,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "RAWG Verified Cover & Metadata",
+                                            color = Color.White,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Auto-populated fields (Release Year, Platform, Genre)
+                    if (isSelectedFromRawg && !isCustomGameMode) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = DarkCard,
+                            border = BorderStroke(1.dp, CyberPurple.copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = AccentEmerald,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "AUTO-POPULATED FROM RAWG API",
+                                            color = AccentEmerald,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    TextButton(
+                                        onClick = { isCustomGameMode = true },
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text("Customize", color = TextMuted, fontSize = 11.sp)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = DarkSurface,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Column(modifier = Modifier.padding(8.dp)) {
+                                            Text("YEAR", color = TextMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                            Text(releaseYearStr, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = DarkSurface,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Column(modifier = Modifier.padding(8.dp)) {
+                                            Text("PLATFORM", color = TextMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                            Text(platform, color = NeonCyan, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = DarkSurface,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Column(modifier = Modifier.padding(8.dp)) {
+                                            Text("GENRE", color = TextMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                            Text(genre, color = CyberPurple, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Custom Game Mode: manual selection of platform, genre, and year
+                        if (isCustomGameMode && !isEditing) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "MANUAL ENTRY MODE",
+                                    color = NeonCyan,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                TextButton(
+                                    onClick = {
+                                        isCustomGameMode = false
+                                        showSuggestionsDropdown = true
+                                    },
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Text("Switch to RAWG search", color = TextMuted, fontSize = 11.sp)
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Platform Selection Chips
+                        Text(
+                            text = "PLATFORM",
+                            color = TextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CommonPlatforms.forEach { p ->
+                                val selected = platform == p
+                                FilterChip(
+                                    selected = selected,
+                                    onClick = { platform = p },
+                                    label = { Text(p) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = NeonCyan.copy(alpha = 0.25f),
+                                        selectedLabelColor = NeonCyan,
+                                        containerColor = DarkCard,
+                                        labelColor = TextSecondary
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = selected,
+                                        borderColor = DarkCardBorder,
+                                        selectedBorderColor = NeonCyan
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Genre Selection Chips
+                        Text(
+                            text = "GENRE",
+                            color = TextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CommonGenres.forEach { g ->
+                                val selected = genre == g
+                                FilterChip(
+                                    selected = selected,
+                                    onClick = { genre = g },
+                                    label = { Text(g) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = CyberPurple.copy(alpha = 0.25f),
+                                        selectedLabelColor = CyberPurple,
+                                        containerColor = DarkCard,
+                                        labelColor = TextSecondary
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = selected,
+                                        borderColor = DarkCardBorder,
+                                        selectedBorderColor = CyberPurple
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Release Year Field
+                        Text(
+                            text = "RELEASE YEAR",
+                            color = TextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = releaseYearStr,
+                            onValueChange = { releaseYearStr = it },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            colors = textFieldColors,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("input_release_year")
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Cover Image URL
-                    Text(
-                        text = "COVER IMAGE URL",
-                        color = TextMuted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedTextField(
-                        value = coverUrl,
-                        onValueChange = { coverUrl = it },
-                        placeholder = { Text("https://...", color = TextMuted) },
-                        singleLine = true,
-                        colors = textFieldColors,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("input_cover_url")
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Status Picker
+                    // Completion Status
                     Text(
                         text = "COMPLETION STATUS",
                         color = TextMuted,
@@ -352,128 +828,28 @@ fun AddEditGameDialog(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Platform Selection Chips + Custom
+                    // Playtime Hours
                     Text(
-                        text = "PLATFORM",
+                        text = "PLAYTIME (HOURS)",
                         color = TextMuted,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        CommonPlatforms.forEach { p ->
-                            val selected = platform == p
-                            FilterChip(
-                                selected = selected,
-                                onClick = { platform = p },
-                                label = { Text(p) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = NeonCyan.copy(alpha = 0.25f),
-                                    selectedLabelColor = NeonCyan,
-                                    containerColor = DarkCard,
-                                    labelColor = TextSecondary
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
-                                    selected = selected,
-                                    borderColor = DarkCardBorder,
-                                    selectedBorderColor = NeonCyan
-                                )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Genre Selection Chips
-                    Text(
-                        text = "GENRE",
-                        color = TextMuted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
+                    OutlinedTextField(
+                        value = if (playtimeHours == 0.0) "" else playtimeHours.toString(),
+                        onValueChange = {
+                            playtimeHours = it.toDoubleOrNull() ?: 0.0
+                        },
+                        placeholder = { Text("0", color = TextMuted) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        colors = textFieldColors,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("input_playtime")
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        CommonGenres.forEach { g ->
-                            val selected = genre == g
-                            FilterChip(
-                                selected = selected,
-                                onClick = { genre = g },
-                                label = { Text(g) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = CyberPurple.copy(alpha = 0.25f),
-                                    selectedLabelColor = CyberPurple,
-                                    containerColor = DarkCard,
-                                    labelColor = TextSecondary
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
-                                    selected = selected,
-                                    borderColor = DarkCardBorder,
-                                    selectedBorderColor = CyberPurple
-                                )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Release Year & Playtime (Side-by-side)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "RELEASE YEAR",
-                                color = TextMuted,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            OutlinedTextField(
-                                value = releaseYearStr,
-                                onValueChange = { releaseYearStr = it },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                singleLine = true,
-                                colors = textFieldColors,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("input_release_year")
-                            )
-                        }
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "PLAYTIME (HOURS)",
-                                color = TextMuted,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            OutlinedTextField(
-                                value = if (playtimeHours == 0.0) "" else playtimeHours.toString(),
-                                onValueChange = {
-                                    playtimeHours = it.toDoubleOrNull() ?: 0.0
-                                },
-                                placeholder = { Text("0", color = TextMuted) },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                singleLine = true,
-                                colors = textFieldColors,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("input_playtime")
-                            )
-                        }
-                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -498,7 +874,7 @@ fun AddEditGameDialog(
                     }
                     Slider(
                         value = rating.toFloat(),
-                        onValueChange = { rating = it.toInt() },
+                        onValueChange = { rating = it.roundToInt() },
                         valueRange = 0f..10f,
                         steps = 9,
                         colors = SliderDefaults.colors(
@@ -506,10 +882,12 @@ fun AddEditGameDialog(
                             activeTrackColor = AccentAmber,
                             inactiveTrackColor = DarkCardBorder
                         ),
-                        modifier = Modifier.testTag("input_rating_slider")
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("input_rating_slider")
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Favorite Toggle
                     Row(
@@ -517,7 +895,6 @@ fun AddEditGameDialog(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(DarkCard)
-                            .border(1.dp, DarkCardBorder, RoundedCornerShape(12.dp))
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -526,22 +903,30 @@ fun AddEditGameDialog(
                             Icon(
                                 imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                 contentDescription = null,
-                                tint = if (isFavorite) AccentRose else TextMuted
+                                tint = if (isFavorite) AccentRose else TextMuted,
+                                modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Mark as Favorite",
-                                color = TextPrimary,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 14.sp
-                            )
+                            Column {
+                                Text(
+                                    text = "Favorite Game",
+                                    color = TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Highlight in your Vault",
+                                    color = TextMuted,
+                                    fontSize = 11.sp
+                                )
+                            }
                         }
                         Switch(
                             checked = isFavorite,
                             onCheckedChange = { isFavorite = it },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = AccentRose,
+                                checkedThumbColor = AccentRose,
+                                checkedTrackColor = AccentRose.copy(alpha = 0.3f),
                                 uncheckedThumbColor = TextMuted,
                                 uncheckedTrackColor = DarkCardBorder
                             ),
@@ -551,9 +936,9 @@ fun AddEditGameDialog(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Personal Notes Field
+                    // Personal Notes
                     Text(
-                        text = "NOTES & REVIEW",
+                        text = "NOTES & THOUGHTS",
                         color = TextMuted,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
@@ -575,7 +960,7 @@ fun AddEditGameDialog(
                     Spacer(modifier = Modifier.height(20.dp))
                 }
 
-                // Bottom Action Buttons (Cancel, Save)
+                // Bottom Action Buttons (Cancel, Add to Vault / Save Changes)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -619,7 +1004,7 @@ fun AddEditGameDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
                     ) {
                         Text(
-                            text = if (isEditing) "Save Changes" else "Add Game",
+                            text = if (isEditing) "Save Changes" else "Add to Vault",
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )

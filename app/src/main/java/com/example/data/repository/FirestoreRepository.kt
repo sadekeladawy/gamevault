@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
-import com.example.data.model.MasterGame
 import com.example.data.model.UserProfile
 import com.google.android.gms.tasks.Task
 import com.google.firebase.FirebaseApp
@@ -36,7 +35,6 @@ class FirestoreRepository(private val context: Context) {
         private const val TAG = "FirestoreRepository"
         private const val USERS_COLLECTION = "users"
         private const val GAMES_SUBCOLLECTION = "games"
-        private const val GAMES_DATABASE_COLLECTION = "games_database"
     }
 
     private val firestore: FirebaseFirestore? by lazy {
@@ -370,71 +368,6 @@ class FirestoreRepository(private val context: Context) {
             Result.success(list)
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching games from cloud for users/$uid: ${e.message}", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Fetch all games from the global Firestore Game Database (`games_database` collection).
-     */
-    suspend fun fetchMasterGameDatabase(): Result<List<MasterGame>> = withContext(Dispatchers.IO) {
-        val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firebase Firestore is not initialized."))
-        try {
-            val snapshot = db.collection(GAMES_DATABASE_COLLECTION)
-                .get()
-                .awaitTask()
-
-            val list = mutableListOf<MasterGame>()
-            for (doc in snapshot.documents) {
-                val data = doc.data ?: continue
-                val masterGame = MasterGame.fromMap(doc.id, data)
-                list.add(masterGame)
-            }
-            Log.d(TAG, "Fetched ${list.size} games from Firestore $GAMES_DATABASE_COLLECTION")
-            Result.success(list)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error fetching master game database: ${e.message}", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Seed or sync a list of curated master games into the Firestore `games_database` collection.
-     */
-    suspend fun seedMasterGameDatabase(games: List<MasterGame>): Result<Int> = withContext(Dispatchers.IO) {
-        val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firebase Firestore is not initialized."))
-        try {
-            val batch = db.batch()
-            val collectionRef = db.collection(GAMES_DATABASE_COLLECTION)
-
-            for (game in games) {
-                val docId = if (game.id.isNotBlank()) game.id else game.title.lowercase().replace(" ", "-").replace(Regex("[^a-z0-9-]"), "")
-                val docRef = collectionRef.document(docId)
-                batch.set(docRef, game.toMap(), SetOptions.merge())
-            }
-
-            batch.commit().awaitTask()
-            Log.d(TAG, "Successfully seeded ${games.size} games into Firestore $GAMES_DATABASE_COLLECTION")
-            Result.success(games.size)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error seeding master game database: ${e.message}", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Add or update a single game in the Firestore `games_database` collection.
-     */
-    suspend fun addGameToMasterDatabase(game: MasterGame): Result<Unit> = withContext(Dispatchers.IO) {
-        val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firebase Firestore is not initialized."))
-        try {
-            val docId = if (game.id.isNotBlank()) game.id else game.title.lowercase().replace(" ", "-").replace(Regex("[^a-z0-9-]"), "")
-            db.collection(GAMES_DATABASE_COLLECTION).document(docId)
-                .set(game.toMap(), SetOptions.merge())
-                .awaitTask()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error adding game to master database: ${e.message}", e)
             Result.failure(e)
         }
     }
