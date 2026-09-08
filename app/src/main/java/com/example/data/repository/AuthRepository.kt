@@ -133,9 +133,11 @@ class AuthRepository(
                         )
                         return@withContext
                     }
+                    val displayName = user.displayName ?: user.email?.substringBefore("@").orEmpty().replaceFirstChar { it.uppercase() }
                     val profile = UserProfile(
                         uid = user.uid,
-                        fullName = user.displayName ?: "Vault Gamer",
+                        displayName = displayName,
+                        fullName = displayName,
                         email = user.email ?: "",
                         photoUrl = user.photoUrl?.toString(),
                         isEmailVerified = user.isEmailVerified
@@ -349,9 +351,10 @@ class AuthRepository(
                 Log.w(TAG, "Failed to send initial verification email: ${e.message}")
             }
 
-            // Create initial Firestore user document with isEmailVerified = false
+            // Create document in users/{uid} storing basic info: uid, email, displayName, and createdAt timestamp
             val initialProfile = UserProfile(
                 uid = user.uid,
+                displayName = cleanName,
                 fullName = cleanName,
                 email = cleanEmail,
                 gamerTag = cleanTag,
@@ -360,9 +363,14 @@ class AuthRepository(
                 isEmailVerified = false
             )
             try {
-                firestoreRepository.saveUserProfile(initialProfile)
+                firestoreRepository.createUserDocument(
+                    uid = user.uid,
+                    email = cleanEmail,
+                    displayName = cleanName,
+                    createdAt = initialProfile.createdAt
+                )
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to save initial Firestore profile: ${e.message}")
+                Log.w(TAG, "Failed to create initial Firestore profile: ${e.message}")
             }
 
             // Do not allow unverified users to access the main app: sign out immediately
@@ -549,28 +557,25 @@ class AuthRepository(
     }
 
     private suspend fun loadOrCreateProfile(user: FirebaseUser): UserProfile {
-        val firestoreProfile = firestoreRepository.getUserProfile(
+        val result = firestoreRepository.loadOrCreateUserDocument(
             uid = user.uid,
             email = user.email.orEmpty(),
-            isEmailVerified = user.isEmailVerified
-        ).getOrNull()
-
-        if (firestoreProfile != null) {
-            return firestoreProfile.copy(isEmailVerified = user.isEmailVerified)
-        }
-
-        // Profile doesn't exist yet in Firestore, create it
-        val newProfile = UserProfile(
-            uid = user.uid,
-            fullName = user.displayName ?: user.email?.substringBefore("@").orEmpty().replaceFirstChar { it.uppercase() },
-            email = user.email.orEmpty(),
-            photoUrl = user.photoUrl?.toString(),
-            createdAt = System.currentTimeMillis(),
-            lastLoginAt = System.currentTimeMillis(),
+            displayName = user.displayName,
             isEmailVerified = user.isEmailVerified
         )
-        firestoreRepository.saveUserProfile(newProfile)
-        return newProfile
+        return result.getOrElse {
+            val fallbackName = user.displayName ?: user.email?.substringBefore("@").orEmpty().replaceFirstChar { it.uppercase() }
+            UserProfile(
+                uid = user.uid,
+                displayName = fallbackName,
+                fullName = fallbackName,
+                email = user.email.orEmpty(),
+                photoUrl = user.photoUrl?.toString(),
+                createdAt = System.currentTimeMillis(),
+                lastLoginAt = System.currentTimeMillis(),
+                isEmailVerified = user.isEmailVerified
+            )
+        }
     }
 
     private fun validateCredentials(email: String, pass: String): String? {
