@@ -1,0 +1,177 @@
+package com.example.data.sample
+
+import com.example.data.model.Game
+import com.example.data.model.GameStatus
+
+object SampleGames {
+    val initialGames = listOf(
+        Game(
+            id = 1,
+            title = "Elden Ring",
+            coverUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/co4jni.webp",
+            platform = "PC",
+            genre = "Action RPG",
+            releaseYear = 2022,
+            status = GameStatus.COMPLETED,
+            completionDate = "2024-02-18",
+            playtimeHours = 118.5,
+            rating = 10,
+            notes = "Masterpiece of world design. Defeated Malenia with a pure Dexterity build after 40 attempts. The Lands Between is unforgettable.",
+            isFavorite = true
+        ),
+        Game(
+            id = 2,
+            title = "Cyberpunk 2077",
+            coverUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/co2mdf.webp",
+            platform = "PC",
+            genre = "Open World RPG",
+            releaseYear = 2020,
+            status = GameStatus.COMPLETED,
+            completionDate = "2024-05-10",
+            playtimeHours = 84.0,
+            rating = 9,
+            notes = "Phantom Liberty expansion was phenomenal. Night City with full ray tracing is the most immersive game environment ever made.",
+            isFavorite = true
+        ),
+        Game(
+            id = 3,
+            title = "Baldur's Gate 3",
+            coverUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/co670h.webp",
+            platform = "PC",
+            genre = "CRPG",
+            releaseYear = 2023,
+            status = GameStatus.CURRENTLY_PLAYING,
+            completionDate = null,
+            playtimeHours = 68.0,
+            rating = 10,
+            notes = "Currently in Act 3 exploring the Lower City. The depth of choices and companion storylines is mind-blowing.",
+            isFavorite = true
+        ),
+        Game(
+            id = 4,
+            title = "The Legend of Zelda: Tears of the Kingdom",
+            coverUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/co5vmg.webp",
+            platform = "Nintendo Switch",
+            genre = "Action Adventure",
+            releaseYear = 2023,
+            status = GameStatus.COMPLETED,
+            completionDate = "2023-11-20",
+            playtimeHours = 96.0,
+            rating = 10,
+            notes = "The Ultrahand engineering mechanics allow endless creativity. Flying across Hyrule's sky islands was pure magic.",
+            isFavorite = true
+        ),
+        Game(
+            id = 5,
+            title = "God of War Ragnarök",
+            coverUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/co5s5v.webp",
+            platform = "PlayStation 5",
+            genre = "Action Adventure",
+            releaseYear = 2022,
+            status = GameStatus.COMPLETED,
+            completionDate = "2024-01-08",
+            playtimeHours = 46.5,
+            rating = 9,
+            notes = "Incredible emotional conclusion to the Norse saga. Combat feels weighty, punchy, and satisfying.",
+            isFavorite = true
+        ),
+        Game(
+            id = 6,
+            title = "Hades II",
+            coverUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/co5w3j.webp",
+            platform = "PC",
+            genre = "Roguelike",
+            releaseYear = 2024,
+            status = GameStatus.CURRENTLY_PLAYING,
+            completionDate = null,
+            playtimeHours = 34.0,
+            rating = 9,
+            notes = "Melinoë's witchcraft magic combat is slick. Love the soundtrack by Darren Korb.",
+            isFavorite = false
+        ),
+        Game(
+            id = 7,
+            title = "Hollow Knight",
+            coverUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/co1r7f.webp",
+            platform = "PC",
+            genre = "Metroidvania",
+            releaseYear = 2017,
+            status = GameStatus.COMPLETED,
+            completionDate = "2023-08-14",
+            playtimeHours = 55.0,
+            rating = 10,
+            notes = "Hallownest atmospheric perfection. 112% completion done. Still waiting eagerly for Silksong.",
+            isFavorite = true
+        ),
+        Game(
+            id = 8,
+            title = "Final Fantasy VII Rebirth",
+            coverUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/co6l8l.webp",
+            platform = "PlayStation 5",
+            genre = "JRPG",
+            releaseYear = 2024,
+            status = GameStatus.BACKLOG,
+            completionDate = null,
+            playtimeHours = 0.0,
+            rating = 0,
+            notes = "Purchased on launch, waiting for a free vacation weekend to dive in completely.",
+            isFavorite = false
+        ),
+        Game(
+            id = 9,
+            title = "Ghost of Tsushima",
+            coverUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/co2crj.webp",
+            platform = "PlayStation 5",
+            genre = "Action Adventure",
+            releaseYear = 2020,
+            status = GameStatus.COMPLETED,
+            completionDate = "2024-06-25",
+            playtimeHours = 52.0,
+            rating = 9,
+            notes = "Stunning art direction and fluid katana dueling. The wind guidance mechanic was a genius HUD alternative.",
+            isFavorite = false
+        ),
+        Game(
+            id = 10,
+            title = "Metroid Dread",
+            coverUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/co390x.webp",
+            platform = "Nintendo Switch",
+            genre = "Metroidvania",
+            releaseYear = 2021,
+            status = GameStatus.COMPLETED,
+            completionDate = "2024-03-02",
+            playtimeHours = 14.5,
+            rating = 8,
+            notes = "Tight controls, tense E.M.M.I. chase sequences, and tough boss battles. MercurySteam nailed the movement speed.",
+            isFavorite = false
+        ),
+        Game(
+            id = 11,
+            title = "Starfield",
+            coverUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/co3p2d.webp",
+            platform = "Xbox Series X",
+            genre = "Sci-Fi RPG",
+            releaseYear = 2023,
+            status = GameStatus.DROPPED,
+            completionDate = null,
+            playtimeHours = 26.0,
+            rating = 6,
+            notes = "Ship building was fun, but repetitive planetary exploration and loading screens took away the sense of wonder.",
+            isFavorite = false
+        ),
+        Game(
+            id = 12,
+            title = "Alan Wake 2",
+            coverUrl = "https://images.igdb.com/igdb/image/upload/t_cover_big/co6q5z.webp",
+            platform = "PC",
+            genre = "Survival Horror",
+            releaseYear = 2023,
+            status = GameStatus.BACKLOG,
+            completionDate = null,
+            playtimeHours = 0.0,
+            rating = 0,
+            notes = "Recommended by friends for the mind-bending narrative and sound design. Planning to play during spooky season.",
+            isFavorite = false
+        )
+    )
+}

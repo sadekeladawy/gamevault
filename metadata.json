@@ -1,0 +1,6 @@
+{
+  "name": "GameVault",
+  "description": "Modern video game tracker and completion library for gamers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
