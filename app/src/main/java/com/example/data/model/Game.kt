@@ -33,7 +33,8 @@ data class Game(
     val rating: Int = 0, // 1 - 10
     val notes: String = "",
     val isFavorite: Boolean = false,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val userId: String = ""
 )
 
 class Converters {

@@ -114,20 +114,30 @@ class GameRepository(
         gameDao.updateGame(updated)
     }
 
+    /**
+     * Deprecated: Automatic sample data seeding is disabled to ensure user data isolation.
+     * New users start with an empty profile and empty game library.
+     */
     suspend fun checkAndSeedInitialData() = withContext(Dispatchers.IO) {
-        val count = gameDao.getGamesCount()
-        if (count == 0) {
-            gameDao.insertGames(SampleGames.initialGames)
-        }
+        // Intentionally no-op: do not seed sample games automatically for new users
     }
 
-    suspend fun resetToSampleData() = withContext(Dispatchers.IO) {
+    suspend fun resetToSampleData(userId: String = "") = withContext(Dispatchers.IO) {
         gameDao.deleteAllGames()
-        gameDao.insertGames(SampleGames.initialGames)
+        val taggedGames = SampleGames.initialGames.map { it.copy(id = 0, userId = userId) }
+        gameDao.insertGames(taggedGames)
     }
 
     suspend fun clearAllGames() = withContext(Dispatchers.IO) {
         gameDao.deleteAllGames()
+    }
+
+    suspend fun clearGamesForUser(userId: String) = withContext(Dispatchers.IO) {
+        if (userId.isNotBlank()) {
+            gameDao.deleteGamesForUser(userId)
+        } else {
+            gameDao.deleteAllGames()
+        }
     }
 
     suspend fun exportToJson(games: List<Game>): String = withContext(Dispatchers.Default) {
@@ -167,7 +177,7 @@ class GameRepository(
         sb.toString()
     }
 
-    suspend fun importFromJson(jsonString: String): Result<Int> = withContext(Dispatchers.IO) {
+    suspend fun importFromJson(jsonString: String, userId: String = ""): Result<Int> = withContext(Dispatchers.IO) {
         try {
             val jsonArray = JSONArray(jsonString.trim())
             val importedList = mutableListOf<Game>()
@@ -186,7 +196,8 @@ class GameRepository(
                     rating = obj.optInt("rating", 0).coerceIn(0, 10),
                     notes = obj.optString("notes", ""),
                     isFavorite = obj.optBoolean("isFavorite", false),
-                    createdAt = obj.optLong("createdAt", System.currentTimeMillis())
+                    createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
+                    userId = userId
                 )
                 importedList.add(game)
             }

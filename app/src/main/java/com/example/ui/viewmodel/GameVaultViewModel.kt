@@ -1,6 +1,7 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
@@ -13,6 +14,7 @@ import com.example.data.repository.AuthState
 import com.example.data.repository.FirestoreRepository
 import com.example.data.repository.GameRepository
 import com.example.data.sample.MasterGameCatalog
+import com.example.data.sample.SampleGames
 import com.example.data.remote.rawg.RawgApiClient
 import com.example.data.remote.rawg.RawgGameDto
 import com.example.data.remote.rawg.RawgRepository
@@ -184,28 +186,38 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     val hasSearchedRawg: StateFlow<Boolean> = _hasSearchedRawg.asStateFlow()
 
     private var rawgSearchJob: Job? = null
+    private var activeSessionUserId: String? = null
 
     init {
         val db = AppDatabase.getDatabase(application)
         repository = GameRepository(db.gameDao())
 
-        // Ensure sample data is loaded on first launch
+        // Setup allGames state stream from Room
+        allGames = repository.allGames.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+        // Observe current user changes for complete data isolation between accounts
         viewModelScope.launch {
-            repository.checkAndSeedInitialData()
+            authRepository.currentUser.collect { user ->
+                handleUserSessionChanged(user)
+            }
+        }
+
+        // Check auto-login on startup
+        viewModelScope.launch {
             authRepository.checkAutoLogin()
             val user = authRepository.currentUser.value
             if (user != null && user.isEmailVerified) {
                 _currentDestination.value = NavDestination.DASHBOARD
             } else {
                 _currentDestination.value = NavDestination.AUTH
+                // Clear any leftover data when unauthenticated
+                repository.clearAllGames()
             }
         }
-
-        allGames = repository.allGames.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
 
         // Filter and sort games reactively
         filteredGames = combine(allGames, _libraryFilters, _currentDestination) { games, filters, destination ->
@@ -301,6 +313,56 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         )
 
         loadMasterGameDatabase()
+    }
+
+    private suspend fun handleUserSessionChanged(user: UserProfile?) {
+        if (user != null && user.isEmailVerified) {
+            if (activeSessionUserId != user.uid) {
+                Log.i("GameVaultViewModel", "Switching active session to user: ${user.uid}")
+                activeSessionUserId = user.uid
+                // 1. Clear Room database so no previous user's games linger
+                repository.clearAllGames()
+                // 2. Clear transient in-memory state
+                clearTransientState()
+                // 3. Load only this authenticated user's games from Firestore (users/{uid}/games)
+                loadUserGamesFromCloud(user.uid)
+            }
+        } else {
+            // User signed out or not verified
+            if (activeSessionUserId != null) {
+                Log.i("GameVaultViewModel", "User logged out. Clearing local cache.")
+                activeSessionUserId = null
+                repository.clearAllGames()
+                clearTransientState()
+            }
+        }
+    }
+
+    private suspend fun loadUserGamesFromCloud(uid: String) {
+        _isCloudSyncing.value = true
+        val result = firestoreRepository.fetchGamesFromCloud(uid)
+        _isCloudSyncing.value = false
+        result.onSuccess { cloudGames ->
+            if (cloudGames.isNotEmpty()) {
+                repository.importGames(cloudGames)
+                Log.i("GameVaultViewModel", "Loaded ${cloudGames.size} games from cloud for user $uid")
+            } else {
+                Log.i("GameVaultViewModel", "Empty profile for user $uid: 0 games loaded")
+            }
+        }.onFailure { err ->
+            Log.w("GameVaultViewModel", "Could not fetch games from cloud: ${err.message}")
+        }
+    }
+
+    private fun clearTransientState() {
+        _selectedGameForDetails.value = null
+        _gameToEdit.value = null
+        _gameToDelete.value = null
+        _libraryFilters.value = LibraryFilters()
+        _rawgSearchResults.value = emptyList()
+        _rawgSearchQuery.value = ""
+        _hasSearchedRawg.value = false
+        _lastCloudSyncTimestamp.value = null
     }
 
     private fun calculateStats(games: List<Game>): VaultStats {
@@ -504,6 +566,8 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         notes: String,
         isFavorite: Boolean
     ) {
+        val user = currentUser.value
+        val uid = user?.uid ?: ""
         viewModelScope.launch {
             if (id == 0L) {
                 val newGame = Game(
@@ -519,9 +583,14 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                     playtimeHours = playtimeHours,
                     rating = rating,
                     notes = notes,
-                    isFavorite = isFavorite
+                    isFavorite = isFavorite,
+                    userId = uid
                 )
-                repository.insertGame(newGame)
+                val newId = repository.insertGame(newGame)
+                val savedGame = newGame.copy(id = newId)
+                if (uid.isNotBlank()) {
+                    firestoreRepository.saveUserGame(uid, savedGame)
+                }
                 _snackbarMessage.emit("Added \"$title\" to your Vault")
             } else {
                 val updatedGame = Game(
@@ -538,9 +607,13 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                     playtimeHours = playtimeHours,
                     rating = rating,
                     notes = notes,
-                    isFavorite = isFavorite
+                    isFavorite = isFavorite,
+                    userId = uid
                 )
                 repository.updateGame(updatedGame)
+                if (uid.isNotBlank()) {
+                    firestoreRepository.saveUserGame(uid, updatedGame)
+                }
                 _snackbarMessage.emit("Updated \"$title\"")
             }
             closeAddEdit()
@@ -549,8 +622,12 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun executeDeleteGame() {
         val game = _gameToDelete.value ?: return
+        val user = currentUser.value
         viewModelScope.launch {
             repository.deleteGame(game)
+            if (user != null) {
+                firestoreRepository.deleteUserGame(user.uid, game.id)
+            }
             _gameToDelete.value = null
             if (_selectedGameForDetails.value?.id == game.id) {
                 _selectedGameForDetails.value = null
@@ -560,40 +637,60 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun toggleFavorite(game: Game) {
+        val updated = game.copy(isFavorite = !game.isFavorite)
+        val user = currentUser.value
         viewModelScope.launch {
-            repository.toggleFavorite(game)
+            repository.updateGame(updated)
+            if (user != null) {
+                firestoreRepository.saveUserGame(user.uid, updated)
+            }
             // Update currently opened details if same game
             if (_selectedGameForDetails.value?.id == game.id) {
-                _selectedGameForDetails.value = game.copy(isFavorite = !game.isFavorite)
+                _selectedGameForDetails.value = updated
             }
-            val statusStr = if (!game.isFavorite) "marked as favorite" else "removed from favorites"
+            val statusStr = if (updated.isFavorite) "marked as favorite" else "removed from favorites"
             _snackbarMessage.emit("\"${game.title}\" $statusStr")
         }
     }
 
     fun updateGameStatus(game: Game, newStatus: GameStatus) {
+        val updatedDate = if (newStatus == GameStatus.COMPLETED) {
+            game.completionDate ?: java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+        } else game.completionDate
+        val updated = game.copy(status = newStatus, completionDate = updatedDate)
+        val user = currentUser.value
         viewModelScope.launch {
-            repository.updateStatus(game, newStatus)
+            repository.updateGame(updated)
+            if (user != null) {
+                firestoreRepository.saveUserGame(user.uid, updated)
+            }
             if (_selectedGameForDetails.value?.id == game.id) {
-                val updatedDate = if (newStatus == GameStatus.COMPLETED) {
-                    game.completionDate ?: java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-                } else game.completionDate
-                _selectedGameForDetails.value = game.copy(status = newStatus, completionDate = updatedDate)
+                _selectedGameForDetails.value = updated
             }
             _snackbarMessage.emit("Moved \"${game.title}\" to ${newStatus.displayName}")
         }
     }
 
     fun resetToSampleData() {
+        val user = currentUser.value
+        val uid = user?.uid ?: ""
         viewModelScope.launch {
-            repository.resetToSampleData()
+            repository.resetToSampleData(uid)
+            if (user != null) {
+                val taggedGames = SampleGames.initialGames.map { it.copy(id = 0, userId = uid) }
+                firestoreRepository.syncGamesToCloud(user.uid, taggedGames)
+            }
             _snackbarMessage.emit("Reset library to sample game collection")
         }
     }
 
     fun clearAllGames() {
+        val user = currentUser.value
         viewModelScope.launch {
             repository.clearAllGames()
+            if (user != null) {
+                firestoreRepository.clearAllUserGamesInCloud(user.uid)
+            }
             _selectedGameForDetails.value = null
             _snackbarMessage.emit("Cleared all games from your Vault")
         }
@@ -624,9 +721,14 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun importLibraryJson(jsonString: String) {
+        val user = currentUser.value
+        val uid = user?.uid ?: ""
         viewModelScope.launch {
-            val result = repository.importFromJson(jsonString)
+            val result = repository.importFromJson(jsonString, uid)
             result.onSuccess { count ->
+                if (user != null) {
+                    firestoreRepository.syncGamesToCloud(user.uid, allGames.value)
+                }
                 _isImportModalOpen.value = false
                 _snackbarMessage.emit("Successfully imported $count games into your Vault!")
             }.onFailure { err ->
@@ -747,6 +849,10 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun signOut() {
         viewModelScope.launch {
+            activeSessionUserId = null
+            // Clear local Room database completely so next user doesn't see previous user's games
+            repository.clearAllGames()
+            clearTransientState()
             authRepository.signOut()
             _currentDestination.value = NavDestination.AUTH
             _isProfileModalOpen.value = false
@@ -788,6 +894,8 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
             val result = firestoreRepository.fetchGamesFromCloud(user.uid)
             _isCloudSyncing.value = false
             result.onSuccess { cloudGames ->
+                // Clear Room cache first, then restore this user's cloud games
+                repository.clearAllGames()
                 if (cloudGames.isEmpty()) {
                     _snackbarMessage.emit("No games found in your Cloud Vault.")
                 } else {
@@ -858,14 +966,20 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun addMasterGameToVault(masterGame: MasterGame, status: GameStatus = GameStatus.BACKLOG, rating: Int = 0) {
+        val user = currentUser.value
+        val uid = user?.uid ?: ""
         viewModelScope.launch {
             val exists = allGames.value.any { it.title.equals(masterGame.title, ignoreCase = true) }
             if (exists) {
                 _snackbarMessage.emit("\"${masterGame.title}\" is already in your Vault!")
                 return@launch
             }
-            val newGame = masterGame.toGame(status = status, rating = rating)
-            repository.insertGame(newGame)
+            val newGame = masterGame.toGame(status = status, rating = rating).copy(userId = uid)
+            val newId = repository.insertGame(newGame)
+            val savedGame = newGame.copy(id = newId)
+            if (uid.isNotBlank()) {
+                firestoreRepository.saveUserGame(uid, savedGame)
+            }
             _snackbarMessage.emit("Added \"${masterGame.title}\" to your Vault (${status.displayName})!")
         }
     }
@@ -936,9 +1050,11 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /**
-     * Adds a game returned from RAWG API search into the user's local Room database and Cloud Firestore.
+     * Adds a game returned from RAWG API search into the user's local Room database and Cloud Firestore under users/{uid}/games.
      */
     fun addRawgGameToVault(rawgGame: RawgGameDto, status: GameStatus = GameStatus.BACKLOG, rating: Int = 0) {
+        val user = currentUser.value
+        val uid = user?.uid ?: ""
         viewModelScope.launch {
             val exists = allGames.value.any { it.title.equals(rawgGame.name, ignoreCase = true) }
             if (exists) {
@@ -960,32 +1076,15 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                 status = status,
                 playtimeHours = rawgGame.playtime?.toDouble() ?: 0.0,
                 rating = if (rating > 0) rating else defaultRating,
-                notes = "Added from RAWG Video Games Database"
+                notes = "Added from RAWG Video Games Database",
+                userId = uid
             )
             val newId = repository.insertGame(newGame)
-            _snackbarMessage.emit("Added \"${rawgGame.name}\" to your Vault (${status.displayName})!")
-
-            // Also persist user-specific data under users/{uid}/games if user is authenticated
-            val user = currentUser.value
-            if (user != null && firestoreRepository.isFirestoreAvailable()) {
-                firestoreRepository.saveUserSpecificData(
-                    uid = user.uid,
-                    subcollection = "games",
-                    docId = newId.toString(),
-                    data = mapOf(
-                        "id" to newId,
-                        "title" to newGame.title,
-                        "coverUrl" to newGame.coverUrl,
-                        "platform" to newGame.platform,
-                        "genre" to newGame.genre,
-                        "releaseYear" to newGame.releaseYear,
-                        "status" to newGame.status.name,
-                        "rating" to newGame.rating,
-                        "rawgId" to rawgGame.id,
-                        "createdAt" to System.currentTimeMillis()
-                    )
-                )
+            val savedGame = newGame.copy(id = newId)
+            if (uid.isNotBlank()) {
+                firestoreRepository.saveUserGame(uid, savedGame)
             }
+            _snackbarMessage.emit("Added \"${rawgGame.name}\" to your Vault (${status.displayName})!")
         }
     }
 }
