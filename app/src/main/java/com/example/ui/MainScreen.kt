@@ -21,9 +21,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
@@ -31,6 +34,7 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.VideogameAsset
 import androidx.compose.material3.Button
@@ -51,11 +55,13 @@ import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.NavigationRailItemDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
@@ -72,20 +78,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import com.example.data.model.UserProfile
 import com.example.ui.components.AddEditGameDialog
+import com.example.ui.components.AuthDialog
 import com.example.ui.components.ConfirmationDialog
 import com.example.ui.components.ExportDialog
 import com.example.ui.components.GameDetailDialog
 import com.example.ui.components.ImportDialog
+import com.example.ui.components.UserProfileDialog
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StatisticsScreen
+import com.example.ui.theme.AccentAmber
+import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
@@ -127,6 +140,14 @@ fun MainScreen(viewModel: GameVaultViewModel) {
     val gameToDelete by viewModel.gameToDelete.collectAsStateWithLifecycle()
     val exportModalData by viewModel.exportModalData.collectAsStateWithLifecycle()
     val isImportModalOpen by viewModel.isImportModalOpen.collectAsStateWithLifecycle()
+
+    val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val authState by viewModel.authState.collectAsStateWithLifecycle()
+    val isAuthModalOpen by viewModel.isAuthModalOpen.collectAsStateWithLifecycle()
+    val authModalInitialTab by viewModel.authModalInitialTab.collectAsStateWithLifecycle()
+    val isProfileModalOpen by viewModel.isProfileModalOpen.collectAsStateWithLifecycle()
+    val isCloudSyncing by viewModel.isCloudSyncing.collectAsStateWithLifecycle()
+    val lastCloudSyncTimestamp by viewModel.lastCloudSyncTimestamp.collectAsStateWithLifecycle()
 
     var showResetSampleConfirm by remember { mutableStateOf(false) }
     var showClearAllConfirm by remember { mutableStateOf(false) }
@@ -256,6 +277,91 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                 )
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // User Profile or Sign-In in Sidebar
+                        if (currentUser != null) {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(1.dp, DarkCardBorder, RoundedCornerShape(12.dp))
+                                    .clickable { viewModel.openProfileModal() }
+                                    .testTag("sidebar_user_profile"),
+                                color = DarkCard
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(34.dp)
+                                            .clip(CircleShape)
+                                            .border(
+                                                1.5.dp,
+                                                if (currentUser?.isEmailVerified == true) NeonCyan else AccentAmber,
+                                                CircleShape
+                                            )
+                                            .background(DarkBg),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (!currentUser?.photoUrl.isNullOrBlank()) {
+                                            AsyncImage(
+                                                model = currentUser?.photoUrl,
+                                                contentDescription = "Avatar",
+                                                modifier = Modifier.size(34.dp).clip(CircleShape),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
+                                            Text(
+                                                text = currentUser?.fullName?.firstOrNull()?.uppercase() ?: "G",
+                                                color = NeonCyan,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = currentUser?.fullName.orEmpty().ifEmpty { "Gamer" },
+                                            color = TextPrimary,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = if (currentUser?.isEmailVerified == true) "Cloud Synced" else "Email unverified",
+                                            color = if (currentUser?.isEmailVerified == true) AccentEmerald else AccentAmber,
+                                            fontSize = 10.sp
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = { viewModel.openAuthModal() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(40.dp)
+                                    .testTag("sidebar_sign_in_button"),
+                                shape = RoundedCornerShape(10.dp),
+                                border = ButtonDefaults.outlinedButtonBorder.copy(
+                                    brush = Brush.horizontalGradient(listOf(CyberPurple, NeonCyan))
+                                ),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AccountCircle,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(17.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Sign In / Sync", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
 
@@ -269,6 +375,9 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                         ScreenRouter(
                             destination = currentDestination,
                             viewModel = viewModel,
+                            currentUser = currentUser,
+                            isCloudSyncing = isCloudSyncing,
+                            lastCloudSyncTimestamp = lastCloudSyncTimestamp,
                             allGames = allGames,
                             filteredGames = filteredGames,
                             filters = filters,
@@ -394,6 +503,97 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                     )
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Drawer User Profile or Sign-In
+                            if (currentUser != null) {
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .border(1.dp, DarkCardBorder, RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            scope.launch { drawerState.close() }
+                                            viewModel.openProfileModal()
+                                        }
+                                        .testTag("drawer_user_profile"),
+                                    color = DarkCard
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .border(
+                                                    1.5.dp,
+                                                    if (currentUser?.isEmailVerified == true) NeonCyan else AccentAmber,
+                                                    CircleShape
+                                                )
+                                                .background(DarkBg),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (!currentUser?.photoUrl.isNullOrBlank()) {
+                                                AsyncImage(
+                                                    model = currentUser?.photoUrl,
+                                                    contentDescription = "Avatar",
+                                                    modifier = Modifier.size(36.dp).clip(CircleShape),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = currentUser?.fullName?.firstOrNull()?.uppercase() ?: "G",
+                                                    color = NeonCyan,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = currentUser?.fullName.orEmpty().ifEmpty { "Gamer" },
+                                                color = TextPrimary,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1
+                                            )
+                                            Text(
+                                                text = if (currentUser?.isEmailVerified == true) "Cloud Synced" else "Email unverified",
+                                                color = if (currentUser?.isEmailVerified == true) AccentEmerald else AccentAmber,
+                                                fontSize = 10.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                OutlinedButton(
+                                    onClick = {
+                                        scope.launch { drawerState.close() }
+                                        viewModel.openAuthModal()
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(40.dp)
+                                        .testTag("drawer_sign_in_button"),
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = ButtonDefaults.outlinedButtonBorder.copy(
+                                        brush = Brush.horizontalGradient(listOf(CyberPurple, NeonCyan))
+                                    ),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AccountCircle,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Sign In / Sync", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 }
@@ -422,6 +622,56 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                 }
                             },
                             actions = {
+                                if (currentUser != null) {
+                                    IconButton(
+                                        onClick = { viewModel.openProfileModal() },
+                                        modifier = Modifier.testTag("app_bar_profile_button")
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .clip(CircleShape)
+                                                .border(
+                                                    1.5.dp,
+                                                    if (currentUser?.isEmailVerified == true) NeonCyan else AccentAmber,
+                                                    CircleShape
+                                                )
+                                                .background(DarkSurface),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (!currentUser?.photoUrl.isNullOrBlank()) {
+                                                AsyncImage(
+                                                    model = currentUser?.photoUrl,
+                                                    contentDescription = "Avatar",
+                                                    modifier = Modifier.size(32.dp).clip(CircleShape),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = currentUser?.fullName?.firstOrNull()?.uppercase() ?: "G",
+                                                    color = NeonCyan,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    TextButton(
+                                        onClick = { viewModel.openAuthModal() },
+                                        modifier = Modifier.testTag("app_bar_sign_in_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AccountCircle,
+                                            contentDescription = null,
+                                            tint = NeonCyan,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Sign In", color = NeonCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
                                 IconButton(
                                     onClick = { viewModel.openAddGame() },
                                     modifier = Modifier.testTag("app_bar_add_button")
@@ -497,17 +747,59 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                     snackbarHost = { SnackbarHost(snackbarHostState) },
                     containerColor = DarkBg
                 ) { paddingValues ->
-                    Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-                        ScreenRouter(
-                            destination = currentDestination,
-                            viewModel = viewModel,
-                            allGames = allGames,
-                            filteredGames = filteredGames,
-                            filters = filters,
-                            stats = stats,
-                            onResetSample = { showResetSampleConfirm = true },
-                            onClearAll = { showClearAllConfirm = true }
-                        )
+                    Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+                        // Email verification notice banner if logged in and unverified
+                        if (currentUser != null && !currentUser!!.isEmailVerified) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(AccentAmber.copy(alpha = 0.15f))
+                                    .clickable { viewModel.sendEmailVerification() }
+                                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = AccentAmber,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Email unverified. Tap to send verification.",
+                                        color = AccentAmber,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                Text(
+                                    text = "Send Link",
+                                    color = NeonCyan,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            ScreenRouter(
+                                destination = currentDestination,
+                                viewModel = viewModel,
+                                currentUser = currentUser,
+                                isCloudSyncing = isCloudSyncing,
+                                lastCloudSyncTimestamp = lastCloudSyncTimestamp,
+                                allGames = allGames,
+                                filteredGames = filteredGames,
+                                filters = filters,
+                                stats = stats,
+                                onResetSample = { showResetSampleConfirm = true },
+                                onClearAll = { showClearAllConfirm = true }
+                            )
+                        }
                     }
                 }
             }
@@ -588,6 +880,36 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                 onImport = { jsonStr -> viewModel.importLibraryJson(jsonStr) }
             )
         }
+
+        if (isAuthModalOpen) {
+            AuthDialog(
+                authState = authState,
+                isFirebaseConfigured = viewModel.isFirebaseConfigured,
+                initialTab = authModalInitialTab,
+                onDismiss = { viewModel.closeAuthModal() },
+                onSignIn = { email, pass, rememberMe -> viewModel.signIn(email, pass, rememberMe) },
+                onSignUp = { name, email, pass, confirm, tag, rememberMe ->
+                    viewModel.signUp(name, email, pass, confirm, tag, rememberMe)
+                },
+                onForgotPassword = { email -> viewModel.sendPasswordReset(email) }
+            )
+        }
+
+        if (isProfileModalOpen && currentUser != null) {
+            UserProfileDialog(
+                user = currentUser!!,
+                isCloudSyncing = isCloudSyncing,
+                lastSyncTimestamp = lastCloudSyncTimestamp,
+                totalLocalGames = allGames.size,
+                onDismiss = { viewModel.closeProfileModal() },
+                onSendVerificationEmail = { viewModel.sendEmailVerification() },
+                onRefreshVerification = { viewModel.refreshUserVerification() },
+                onUpdateProfile = { name, tag, photoUrl -> viewModel.updateUserProfile(name, tag, photoUrl) },
+                onSyncToCloud = { viewModel.syncLibraryToCloud() },
+                onRestoreFromCloud = { viewModel.restoreLibraryFromCloud() },
+                onSignOut = { viewModel.signOut() }
+            )
+        }
     }
 }
 
@@ -595,6 +917,9 @@ fun MainScreen(viewModel: GameVaultViewModel) {
 fun ScreenRouter(
     destination: NavDestination,
     viewModel: GameVaultViewModel,
+    currentUser: UserProfile?,
+    isCloudSyncing: Boolean,
+    lastCloudSyncTimestamp: Long?,
     allGames: List<com.example.data.model.Game>,
     filteredGames: List<com.example.data.model.Game>,
     filters: com.example.ui.viewmodel.LibraryFilters,
@@ -703,6 +1028,15 @@ fun ScreenRouter(
         NavDestination.SETTINGS -> {
             SettingsScreen(
                 totalGamesCount = allGames.size,
+                currentUser = currentUser,
+                isFirebaseConfigured = viewModel.isFirebaseConfigured,
+                isCloudSyncing = isCloudSyncing,
+                lastSyncTimestamp = lastCloudSyncTimestamp,
+                onOpenAuth = { viewModel.openAuthModal() },
+                onOpenProfile = { viewModel.openProfileModal() },
+                onSyncToCloud = { viewModel.syncLibraryToCloud() },
+                onRestoreFromCloud = { viewModel.restoreLibraryFromCloud() },
+                onSignOut = { viewModel.signOut() },
                 onExportJson = { viewModel.exportLibrary("JSON") },
                 onExportCsv = { viewModel.exportLibrary("CSV") },
                 onImportJson = { viewModel.openImportModal() },

@@ -129,4 +129,11 @@ class GameRepository(private val gameDao: GameDao) {
             Result.failure(e)
         }
     }
+
+    suspend fun importGames(games: List<Game>): Int = withContext(Dispatchers.IO) {
+        if (games.isNotEmpty()) {
+            gameDao.insertGames(games)
+        }
+        games.size
+    }
 }

@@ -6,7 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
+import com.example.data.model.UserProfile
+import com.example.data.repository.AuthRepository
+import com.example.data.repository.AuthState
+import com.example.data.repository.FirestoreRepository
 import com.example.data.repository.GameRepository
+import com.example.ui.components.AuthTab
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -68,6 +73,27 @@ data class VaultStats(
 class GameVaultViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: GameRepository
+    private val firestoreRepository: FirestoreRepository = FirestoreRepository(application)
+    private val authRepository: AuthRepository = AuthRepository(application, firestoreRepository)
+
+    val currentUser: StateFlow<UserProfile?> = authRepository.currentUser
+    val authState: StateFlow<AuthState> = authRepository.authState
+    val isFirebaseConfigured: Boolean get() = authRepository.isFirebaseConfigured()
+
+    private val _isAuthModalOpen = MutableStateFlow(false)
+    val isAuthModalOpen: StateFlow<Boolean> = _isAuthModalOpen.asStateFlow()
+
+    private val _authModalInitialTab = MutableStateFlow(AuthTab.SIGN_IN)
+    val authModalInitialTab: StateFlow<AuthTab> = _authModalInitialTab.asStateFlow()
+
+    private val _isProfileModalOpen = MutableStateFlow(false)
+    val isProfileModalOpen: StateFlow<Boolean> = _isProfileModalOpen.asStateFlow()
+
+    private val _isCloudSyncing = MutableStateFlow(false)
+    val isCloudSyncing: StateFlow<Boolean> = _isCloudSyncing.asStateFlow()
+
+    private val _lastCloudSyncTimestamp = MutableStateFlow<Long?>(null)
+    val lastCloudSyncTimestamp: StateFlow<Long?> = _lastCloudSyncTimestamp.asStateFlow()
 
     private val _currentDestination = MutableStateFlow(NavDestination.DASHBOARD)
     val currentDestination: StateFlow<NavDestination> = _currentDestination.asStateFlow()
@@ -109,6 +135,7 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         // Ensure sample data is loaded on first launch
         viewModelScope.launch {
             repository.checkAndSeedInitialData()
+            authRepository.checkAutoLogin()
         }
 
         allGames = repository.allGames.stateIn(
@@ -506,6 +533,152 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                 _snackbarMessage.emit("Successfully imported $count games into your Vault!")
             }.onFailure { err ->
                 _snackbarMessage.emit("Import failed: ${err.localizedMessage ?: "Invalid JSON format"}")
+            }
+        }
+    }
+
+    // --- Firebase Auth & Firestore Sync ---
+
+    fun openAuthModal(initialTab: AuthTab = AuthTab.SIGN_IN) {
+        _authModalInitialTab.value = initialTab
+        _isAuthModalOpen.value = true
+    }
+
+    fun closeAuthModal() {
+        _isAuthModalOpen.value = false
+    }
+
+    fun openProfileModal() {
+        _isProfileModalOpen.value = true
+    }
+
+    fun closeProfileModal() {
+        _isProfileModalOpen.value = false
+    }
+
+    fun signIn(email: String, pass: String, rememberMe: Boolean) {
+        viewModelScope.launch {
+            val result = authRepository.signIn(email, pass, rememberMe)
+            result.onSuccess { user ->
+                _isAuthModalOpen.value = false
+                _snackbarMessage.emit("Welcome back, ${user.fullName}!")
+            }
+        }
+    }
+
+    fun signUp(
+        fullName: String,
+        email: String,
+        pass: String,
+        confirmPass: String,
+        gamerTag: String?,
+        rememberMe: Boolean
+    ) {
+        viewModelScope.launch {
+            val result = authRepository.signUp(fullName, email, pass, confirmPass, gamerTag, rememberMe)
+            result.onSuccess { user ->
+                _isAuthModalOpen.value = false
+                _snackbarMessage.emit("Account created! Welcome to GameVault, ${user.fullName}.")
+            }
+        }
+    }
+
+    fun sendPasswordReset(email: String) {
+        viewModelScope.launch {
+            val result = authRepository.sendPasswordReset(email)
+            result.onSuccess {
+                _snackbarMessage.emit("Password reset email sent! Check your inbox.")
+            }.onFailure { err ->
+                _snackbarMessage.emit(err.localizedMessage ?: "Failed to send reset email.")
+            }
+        }
+    }
+
+    fun sendEmailVerification() {
+        viewModelScope.launch {
+            val result = authRepository.sendEmailVerification()
+            result.onSuccess {
+                _snackbarMessage.emit("Verification email sent! Please check your inbox.")
+            }.onFailure { err ->
+                _snackbarMessage.emit(err.localizedMessage ?: "Failed to send verification email.")
+            }
+        }
+    }
+
+    fun refreshUserVerification() {
+        viewModelScope.launch {
+            val result = authRepository.reloadUserVerification()
+            result.onSuccess { user ->
+                if (user?.isEmailVerified == true) {
+                    _snackbarMessage.emit("Email verified successfully!")
+                } else {
+                    _snackbarMessage.emit("Email is not verified yet. Please check your inbox.")
+                }
+            }
+        }
+    }
+
+    fun updateUserProfile(fullName: String, gamerTag: String?, photoUrl: String?) {
+        viewModelScope.launch {
+            val result = authRepository.updateProfile(fullName, gamerTag, photoUrl)
+            result.onSuccess {
+                _snackbarMessage.emit("Profile updated successfully!")
+            }.onFailure { err ->
+                _snackbarMessage.emit("Update failed: ${err.localizedMessage}")
+            }
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            authRepository.signOut()
+            _isProfileModalOpen.value = false
+            _snackbarMessage.emit("Signed out of GameVault.")
+        }
+    }
+
+    fun syncLibraryToCloud() {
+        val user = currentUser.value
+        if (user == null) {
+            openAuthModal()
+            return
+        }
+
+        viewModelScope.launch {
+            _isCloudSyncing.value = true
+            val currentGames = allGames.value
+            val result = firestoreRepository.syncGamesToCloud(user.uid, currentGames)
+            _isCloudSyncing.value = false
+            result.onSuccess { count ->
+                val now = System.currentTimeMillis()
+                _lastCloudSyncTimestamp.value = now
+                _snackbarMessage.emit("Successfully synced $count games to Cloud Firestore!")
+            }.onFailure { err ->
+                _snackbarMessage.emit("Cloud sync failed: ${err.localizedMessage}")
+            }
+        }
+    }
+
+    fun restoreLibraryFromCloud() {
+        val user = currentUser.value
+        if (user == null) {
+            openAuthModal()
+            return
+        }
+
+        viewModelScope.launch {
+            _isCloudSyncing.value = true
+            val result = firestoreRepository.fetchGamesFromCloud(user.uid)
+            _isCloudSyncing.value = false
+            result.onSuccess { cloudGames ->
+                if (cloudGames.isEmpty()) {
+                    _snackbarMessage.emit("No games found in your Cloud Vault.")
+                } else {
+                    val count = repository.importGames(cloudGames)
+                    _snackbarMessage.emit("Restored $count games from Cloud Firestore into your vault!")
+                }
+            }.onFailure { err ->
+                _snackbarMessage.emit("Failed to restore from cloud: ${err.localizedMessage}")
             }
         }
     }
