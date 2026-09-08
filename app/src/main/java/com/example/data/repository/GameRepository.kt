@@ -1,17 +1,30 @@
 package com.example.data.repository
 
 import android.content.Context
+import android.util.Log
 import com.example.data.local.GameDao
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
+import com.example.data.remote.rawg.RawgApiClient
+import com.example.data.remote.rawg.RawgApiService
+import com.example.data.remote.rawg.RawgGameDto
 import com.example.data.sample.SampleGames
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import retrofit2.HttpException
+import java.io.IOException
 
-class GameRepository(private val gameDao: GameDao) {
+class GameRepository(
+    private val gameDao: GameDao,
+    private val rawgApiService: RawgApiService = RawgApiClient.apiService,
+    private val rawgApiKey: String = RawgApiClient.HARDCODED_RAWG_API_KEY
+) {
+    companion object {
+        private const val TAG = "GameRepository"
+    }
 
     val allGames: Flow<List<Game>> = gameDao.getAllGames()
 
@@ -31,6 +44,62 @@ class GameRepository(private val gameDao: GameDao) {
 
     suspend fun toggleFavorite(game: Game) = withContext(Dispatchers.IO) {
         gameDao.updateGame(game.copy(isFavorite = !game.isFavorite))
+    }
+
+    // --- RAWG Video Games API (Real Network Requests) ---
+
+    /**
+     * Searches RAWG Video Games Database via live REST network request.
+     */
+    suspend fun searchRawgGames(query: String): Result<List<RawgGameDto>> = withContext(Dispatchers.IO) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) {
+            return@withContext Result.success(emptyList())
+        }
+
+        try {
+            Log.d(TAG, "Executing RAWG API search for \"$trimmed\"")
+            val response = rawgApiService.searchGames(
+                apiKey = rawgApiKey,
+                search = trimmed,
+                pageSize = 25
+            )
+            val results = response.results ?: emptyList()
+            Log.d(TAG, "RAWG API search succeeded with ${results.size} games")
+            Result.success(results)
+        } catch (e: IOException) {
+            Log.e(TAG, "Network error during RAWG search: ${e.message}", e)
+            Result.failure(Exception("Network error connecting to RAWG API. Please check your internet connection.", e))
+        } catch (e: HttpException) {
+            val code = e.code()
+            Log.e(TAG, "HTTP $code during RAWG search: ${e.message}", e)
+            val msg = when (code) {
+                401 -> "RAWG API unauthorized (invalid API key). Please check your key in RawgApiClient."
+                429 -> "RAWG API rate limit reached. Please wait a moment and try again."
+                else -> "RAWG API error ($code). Please try again shortly."
+            }
+            Result.failure(Exception(msg, e))
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during RAWG search: ${e.message}", e)
+            Result.failure(Exception(e.localizedMessage ?: "Failed to search RAWG database.", e))
+        }
+    }
+
+    /**
+     * Fetches top games from RAWG API.
+     */
+    suspend fun fetchPopularRawgGames(pageSize: Int = 20): Result<List<RawgGameDto>> = withContext(Dispatchers.IO) {
+        try {
+            val response = rawgApiService.getGames(
+                apiKey = rawgApiKey,
+                pageSize = pageSize,
+                ordering = "-rating"
+            )
+            Result.success(response.results ?: emptyList())
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching top RAWG games: ${e.message}", e)
+            Result.failure(e)
+        }
     }
 
     suspend fun updateStatus(game: Game, newStatus: GameStatus, completionDate: String? = null) = withContext(Dispatchers.IO) {

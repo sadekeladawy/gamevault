@@ -73,6 +73,7 @@ import coil.compose.AsyncImage
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
 import com.example.data.model.MasterGame
+import com.example.data.remote.rawg.RawgGameDto
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.CyberPurple
@@ -89,6 +90,11 @@ import com.example.ui.theme.TextSecondary
 
 private val PlatformFilters = listOf("All", "PC", "PlayStation 5", "Xbox Series X", "Nintendo Switch", "Steam Deck")
 private val GenreFilters = listOf("All", "Action RPG", "Open World RPG", "CRPG", "Action Adventure", "Roguelike", "Shooter", "Survival Horror", "JRPG", "Metroidvania")
+
+enum class GameDatabaseTab(val title: String, val subtitle: String) {
+    RAWG_API("RAWG Live Search", "500k+ API"),
+    FIRESTORE_CATALOG("Firestore Catalog", "Cloud DB")
+}
 
 @Composable
 fun GameDatabaseScreen(
@@ -108,17 +114,95 @@ fun GameDatabaseScreen(
     isGameInVault: (String) -> Boolean,
     getVaultGame: (String) -> Game?,
     onOpenVaultGame: (Game) -> Unit,
+    rawgSearchQuery: String = "",
+    rawgSearchResults: List<RawgGameDto> = emptyList(),
+    isRawgLoading: Boolean = false,
+    rawgErrorMessage: String? = null,
+    hasSearchedRawg: Boolean = false,
+    onRawgSearchChange: (String) -> Unit = {},
+    onRetryRawgSearch: () -> Unit = {},
+    onAddRawgGameToVault: (RawgGameDto, GameStatus) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var selectedGameForDetails by remember { mutableStateOf<MasterGame?>(null) }
     var gameForQuickAdd by remember { mutableStateOf<MasterGame?>(null) }
+    var activeTab by remember { mutableStateOf(GameDatabaseTab.RAWG_API) }
 
-    LazyColumn(
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .testTag("game_database_screen"),
-        contentPadding = PaddingValues(bottom = 90.dp)
+            .testTag("game_database_screen")
     ) {
+        // --- Top Navigation Tabs: RAWG Live API vs Firestore Cloud DB ---
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(DarkSurface)
+                .padding(4.dp)
+                .testTag("database_tab_selector")
+        ) {
+            GameDatabaseTab.values().forEach { tab ->
+                val isSelected = activeTab == tab
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) CyberPurple else Color.Transparent)
+                        .clickable { activeTab = tab }
+                        .padding(vertical = 9.dp)
+                        .testTag("tab_${tab.name.lowercase()}"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = tab.title,
+                            color = if (isSelected) Color.White else TextSecondary,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = if (isSelected) NeonCyan.copy(alpha = 0.25f) else DarkCard,
+                        ) {
+                            Text(
+                                text = tab.subtitle,
+                                color = if (isSelected) NeonCyan else TextMuted,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (activeTab == GameDatabaseTab.RAWG_API) {
+            // Live RAWG Search View
+            RawgSearchScreen(
+                searchQuery = rawgSearchQuery,
+                searchResults = rawgSearchResults,
+                isLoading = isRawgLoading,
+                errorMessage = rawgErrorMessage,
+                hasSearched = hasSearchedRawg,
+                onSearchChange = onRawgSearchChange,
+                onRetrySearch = onRetryRawgSearch,
+                onAddGameToVault = onAddRawgGameToVault,
+                isGameInVault = isGameInVault,
+                getVaultGame = getVaultGame
+            )
+        } else {
+            // Firestore Cloud Catalog View
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 90.dp)
+            ) {
         // --- Header & Firestore Connection Banner ---
         item {
             Column(
@@ -500,6 +584,8 @@ fun GameDatabaseScreen(
             )
         }
     }
+}
+}
 
     // --- Quick Add Dialog to choose status ---
     gameForQuickAdd?.let { game ->

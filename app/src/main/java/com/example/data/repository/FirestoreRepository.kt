@@ -77,6 +77,75 @@ class FirestoreRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Creates a document in users/{uid} with basic info: uid, email, displayName, and createdAt timestamp.
+     */
+    suspend fun createUserDocument(
+        uid: String,
+        email: String,
+        displayName: String?,
+        createdAt: Long = System.currentTimeMillis()
+    ): Result<UserProfile> = withContext(Dispatchers.IO) {
+        val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firebase Firestore is not initialized."))
+        try {
+            val profile = UserProfile(
+                uid = uid,
+                displayName = displayName ?: email.substringBefore("@").replaceFirstChar { it.uppercase() },
+                fullName = displayName ?: email.substringBefore("@").replaceFirstChar { it.uppercase() },
+                email = email,
+                createdAt = createdAt,
+                lastLoginAt = System.currentTimeMillis(),
+                isEmailVerified = false
+            )
+            val userRef = db.collection(USERS_COLLECTION).document(uid)
+            userRef.set(profile.toMap(), SetOptions.merge()).awaitTask()
+            Log.i(TAG, "Successfully created Firestore document at users/$uid")
+            Result.success(profile)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating user document at users/$uid: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Loads the user's Firestore document from users/{uid}.
+     * If it doesn't exist, creates it automatically with uid, email, displayName, and createdAt timestamp.
+     */
+    suspend fun loadOrCreateUserDocument(
+        uid: String,
+        email: String,
+        displayName: String?,
+        isEmailVerified: Boolean
+    ): Result<UserProfile> = withContext(Dispatchers.IO) {
+        val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firebase Firestore is not initialized."))
+        try {
+            val userDoc = db.collection(USERS_COLLECTION).document(uid).get().awaitTask()
+            if (userDoc.exists() && userDoc.data != null) {
+                val profile = UserProfile.fromMap(userDoc.data!!, uid = uid, email = email, isEmailVerified = isEmailVerified)
+                Log.d(TAG, "Loaded existing Firestore user document for $uid")
+                Result.success(profile)
+            } else {
+                Log.i(TAG, "Firestore user document not found for $uid. Creating automatically...")
+                val effectiveName = displayName ?: email.substringBefore("@").replaceFirstChar { it.uppercase() }
+                val newProfile = UserProfile(
+                    uid = uid,
+                    displayName = effectiveName,
+                    fullName = effectiveName,
+                    email = email,
+                    createdAt = System.currentTimeMillis(),
+                    lastLoginAt = System.currentTimeMillis(),
+                    isEmailVerified = isEmailVerified
+                )
+                db.collection(USERS_COLLECTION).document(uid).set(newProfile.toMap(), SetOptions.merge()).awaitTask()
+                Log.i(TAG, "Automatically created Firestore document at users/$uid")
+                Result.success(newProfile)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in loadOrCreateUserDocument for $uid: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun getUserProfile(uid: String, email: String, isEmailVerified: Boolean): Result<UserProfile?> = withContext(Dispatchers.IO) {
         val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firebase Firestore is not initialized."))
         try {
@@ -263,6 +332,49 @@ class FirestoreRepository(private val context: Context) {
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Error adding game to master database: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Store future user-specific data under users/{uid}/{subcollection}/{docId}.
+     */
+    suspend fun saveUserSpecificData(
+        uid: String,
+        subcollection: String,
+        docId: String,
+        data: Map<String, Any?>
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firebase Firestore is not initialized."))
+        try {
+            db.collection(USERS_COLLECTION).document(uid)
+                .collection(subcollection).document(docId)
+                .set(data, SetOptions.merge())
+                .awaitTask()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving user-specific data under users/$uid/$subcollection/$docId: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Delete user-specific data under users/{uid}/{subcollection}/{docId}.
+     */
+    suspend fun deleteUserSpecificData(
+        uid: String,
+        subcollection: String,
+        docId: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        val db = firestore ?: return@withContext Result.failure(IllegalStateException("Firebase Firestore is not initialized."))
+        try {
+            db.collection(USERS_COLLECTION).document(uid)
+                .collection(subcollection).document(docId)
+                .delete()
+                .awaitTask()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting user-specific data under users/$uid/$subcollection/$docId: ${e.message}", e)
             Result.failure(e)
         }
     }

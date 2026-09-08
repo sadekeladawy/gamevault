@@ -960,7 +960,9 @@ fun ScreenRouter(
                 onToggleFavorite = { viewModel.toggleFavorite(it) },
                 onAddGame = { viewModel.openAddGame() },
                 onSearchDatabase = { query ->
+                    viewModel.setRawgSearchQuery(query)
                     viewModel.setMasterSearchQuery(query)
+                    viewModel.navigateTo(NavDestination.GAME_DATABASE)
                 },
                 onAddMasterGameToVault = { game, status ->
                     viewModel.addMasterGameToVault(game, status)
@@ -977,6 +979,11 @@ fun ScreenRouter(
             val isMasterDbLoading by viewModel.isMasterDbLoading.collectAsStateWithLifecycle()
             val isMasterDbSyncing by viewModel.isMasterDbSyncing.collectAsStateWithLifecycle()
             val masterDbStatusMessage by viewModel.masterDbStatusMessage.collectAsStateWithLifecycle()
+            val rawgSearchQuery by viewModel.rawgSearchQuery.collectAsStateWithLifecycle()
+            val rawgSearchResults by viewModel.rawgSearchResults.collectAsStateWithLifecycle()
+            val isRawgLoading by viewModel.isRawgLoading.collectAsStateWithLifecycle()
+            val rawgErrorMessage by viewModel.rawgErrorMessage.collectAsStateWithLifecycle()
+            val hasSearchedRawg by viewModel.hasSearchedRawg.collectAsStateWithLifecycle()
 
             GameDatabaseScreen(
                 masterGames = masterGames,
@@ -997,7 +1004,15 @@ fun ScreenRouter(
                 onOpenVaultGame = {
                     viewModel.navigateTo(NavDestination.LIBRARY)
                     viewModel.openGameDetails(it)
-                }
+                },
+                rawgSearchQuery = rawgSearchQuery,
+                rawgSearchResults = rawgSearchResults,
+                isRawgLoading = isRawgLoading,
+                rawgErrorMessage = rawgErrorMessage,
+                hasSearchedRawg = hasSearchedRawg,
+                onRawgSearchChange = { viewModel.setRawgSearchQuery(it) },
+                onRetryRawgSearch = { viewModel.retryRawgSearch() },
+                onAddRawgGameToVault = { game, status -> viewModel.addRawgGameToVault(game, status) }
             )
         }
 

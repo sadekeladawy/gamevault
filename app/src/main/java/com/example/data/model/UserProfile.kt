@@ -2,6 +2,7 @@ package com.example.data.model
 
 data class UserProfile(
     val uid: String = "",
+    val displayName: String = "",
     val fullName: String = "",
     val email: String = "",
     val photoUrl: String? = null,
@@ -13,11 +14,16 @@ data class UserProfile(
     val completedGamesCount: Int = 0,
     val isEmailVerified: Boolean = false
 ) {
+    val effectiveName: String
+        get() = displayName.ifBlank { fullName.ifBlank { email.substringBefore("@").replaceFirstChar { it.uppercase() } } }
+
     fun toMap(): Map<String, Any?> {
+        val name = effectiveName
         return mapOf(
             "uid" to uid,
-            "fullName" to fullName,
             "email" to email,
+            "displayName" to name,
+            "fullName" to name,
             "photoUrl" to photoUrl,
             "gamerTag" to gamerTag,
             "bio" to bio,
@@ -30,9 +36,11 @@ data class UserProfile(
 
     companion object {
         fun fromMap(map: Map<String, Any?>, uid: String, email: String, isEmailVerified: Boolean = false): UserProfile {
+            val name = (map["displayName"] as? String) ?: (map["fullName"] as? String) ?: ""
             return UserProfile(
                 uid = uid,
-                fullName = (map["fullName"] as? String) ?: "",
+                displayName = name,
+                fullName = name,
                 email = (map["email"] as? String) ?: email,
                 photoUrl = map["photoUrl"] as? String,
                 gamerTag = map["gamerTag"] as? String,

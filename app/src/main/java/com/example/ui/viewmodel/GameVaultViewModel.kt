@@ -13,7 +13,12 @@ import com.example.data.repository.AuthState
 import com.example.data.repository.FirestoreRepository
 import com.example.data.repository.GameRepository
 import com.example.data.sample.MasterGameCatalog
+import com.example.data.remote.rawg.RawgApiClient
+import com.example.data.remote.rawg.RawgGameDto
+import com.example.data.remote.rawg.RawgRepository
 import com.example.ui.components.AuthTab
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -159,6 +164,26 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     val masterDbStatusMessage: StateFlow<String?> = _masterDbStatusMessage.asStateFlow()
 
     val filteredMasterGames: StateFlow<List<MasterGame>>
+
+    // --- RAWG Video Games API Integration ---
+    private val rawgRepository: RawgRepository = RawgRepository()
+
+    private val _rawgSearchQuery = MutableStateFlow("")
+    val rawgSearchQuery: StateFlow<String> = _rawgSearchQuery.asStateFlow()
+
+    private val _rawgSearchResults = MutableStateFlow<List<RawgGameDto>>(emptyList())
+    val rawgSearchResults: StateFlow<List<RawgGameDto>> = _rawgSearchResults.asStateFlow()
+
+    private val _isRawgLoading = MutableStateFlow(false)
+    val isRawgLoading: StateFlow<Boolean> = _isRawgLoading.asStateFlow()
+
+    private val _rawgErrorMessage = MutableStateFlow<String?>(null)
+    val rawgErrorMessage: StateFlow<String?> = _rawgErrorMessage.asStateFlow()
+
+    private val _hasSearchedRawg = MutableStateFlow(false)
+    val hasSearchedRawg: StateFlow<Boolean> = _hasSearchedRawg.asStateFlow()
+
+    private var rawgSearchJob: Job? = null
 
     init {
         val db = AppDatabase.getDatabase(application)
@@ -851,5 +876,116 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun getVaultGame(title: String): Game? {
         return allGames.value.firstOrNull { it.title.equals(title, ignoreCase = true) }
+    }
+
+    // --- RAWG Search Methods ---
+
+    /**
+     * Updates the search query and sends request automatically with debounce.
+     */
+    fun setRawgSearchQuery(query: String) {
+        _rawgSearchQuery.value = query
+        rawgSearchJob?.cancel()
+
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) {
+            _rawgSearchResults.value = emptyList()
+            _rawgErrorMessage.value = null
+            _isRawgLoading.value = false
+            _hasSearchedRawg.value = false
+            return
+        }
+
+        // Send request automatically after 450ms debounce
+        rawgSearchJob = viewModelScope.launch {
+            delay(450)
+            executeRawgSearch(trimmed)
+        }
+    }
+
+    /**
+     * Executes immediate search for the given query.
+     */
+    fun searchRawg(query: String? = null) {
+        val target = (query ?: _rawgSearchQuery.value).trim()
+        if (target.isEmpty()) return
+        rawgSearchJob?.cancel()
+        viewModelScope.launch {
+            executeRawgSearch(target)
+        }
+    }
+
+    fun retryRawgSearch() {
+        searchRawg(_rawgSearchQuery.value)
+    }
+
+    private suspend fun executeRawgSearch(query: String) {
+        _isRawgLoading.value = true
+        _rawgErrorMessage.value = null
+        _hasSearchedRawg.value = true
+
+        val result = repository.searchRawgGames(query)
+        _isRawgLoading.value = false
+        result.onSuccess { games ->
+            _rawgSearchResults.value = games
+            _rawgErrorMessage.value = null
+        }.onFailure { error ->
+            _rawgSearchResults.value = emptyList()
+            _rawgErrorMessage.value = error.localizedMessage ?: "Failed to load games from RAWG"
+        }
+    }
+
+    /**
+     * Adds a game returned from RAWG API search into the user's local Room database and Cloud Firestore.
+     */
+    fun addRawgGameToVault(rawgGame: RawgGameDto, status: GameStatus = GameStatus.BACKLOG, rating: Int = 0) {
+        viewModelScope.launch {
+            val exists = allGames.value.any { it.title.equals(rawgGame.name, ignoreCase = true) }
+            if (exists) {
+                _snackbarMessage.emit("\"${rawgGame.name}\" is already in your Vault!")
+                return@launch
+            }
+
+            val firstPlatform = rawgGame.platforms?.firstOrNull()?.platform?.name ?: "PC"
+            val firstGenre = rawgGame.genres?.firstOrNull()?.name ?: "Action"
+            val year = rawgGame.released?.take(4)?.toIntOrNull() ?: 2024
+            val defaultRating = rawgGame.rating?.let { (it * 2).toInt().coerceIn(1, 10) } ?: 0
+
+            val newGame = Game(
+                title = rawgGame.name,
+                coverUrl = rawgGame.backgroundImage ?: "",
+                platform = firstPlatform,
+                genre = firstGenre,
+                releaseYear = year,
+                status = status,
+                playtimeHours = rawgGame.playtime?.toDouble() ?: 0.0,
+                rating = if (rating > 0) rating else defaultRating,
+                notes = "Added from RAWG Video Games Database"
+            )
+            val newId = repository.insertGame(newGame)
+            _snackbarMessage.emit("Added \"${rawgGame.name}\" to your Vault (${status.displayName})!")
+
+            // Also persist user-specific data under users/{uid}/games if user is authenticated
+            val user = currentUser.value
+            if (user != null && firestoreRepository.isFirestoreAvailable()) {
+                firestoreRepository.saveUserSpecificData(
+                    uid = user.uid,
+                    subcollection = "games",
+                    docId = newId.toString(),
+                    data = mapOf(
+                        "id" to newId,
+                        "title" to newGame.title,
+                        "coverUrl" to newGame.coverUrl,
+                        "platform" to newGame.platform,
+                        "genre" to newGame.genre,
+                        "releaseYear" to newGame.releaseYear,
+                        "status" to newGame.status.name,
+                        "rating" to newGame.rating,
+                        "rawgId" to rawgGame.id,
+                        "createdAt" to System.currentTimeMillis()
+                    )
+                )
+            }
+        }
     }
 }
