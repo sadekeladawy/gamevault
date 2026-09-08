@@ -17,7 +17,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -95,6 +97,31 @@ fun CompletionBarChart(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            val density = LocalDensity.current
+            val linePaint = remember {
+                android.graphics.Paint().apply {
+                    color = android.graphics.Color.argb(25, 255, 255, 255)
+                    strokeWidth = 1f
+                }
+            }
+            val textPaint = remember(density) {
+                android.graphics.Paint().apply {
+                    color = android.graphics.Color.argb(180, 148, 163, 184)
+                    textSize = with(density) { 10.sp.toPx() }
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    isAntiAlias = true
+                }
+            }
+            val valuePaint = remember(density) {
+                android.graphics.Paint().apply {
+                    color = android.graphics.Color.WHITE
+                    textSize = with(density) { 11.sp.toPx() }
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    isFakeBoldText = true
+                    isAntiAlias = true
+                }
+            }
+
             // Canvas Bar Chart
             Box(
                 modifier = Modifier
@@ -113,10 +140,6 @@ fun CompletionBarChart(
                     val barWidth = (barSpacing * 0.55f).coerceAtMost(36.dp.toPx())
 
                     // Draw subtle grid lines
-                    val linePaint = android.graphics.Paint().apply {
-                        color = android.graphics.Color.argb(25, 255, 255, 255)
-                        strokeWidth = 1f
-                    }
                     for (i in 0..3) {
                         val y = chartHeight * (i / 3f)
                         drawLine(
@@ -125,21 +148,6 @@ fun CompletionBarChart(
                             end = Offset(w, y),
                             strokeWidth = 1f
                         )
-                    }
-
-                    val textPaint = android.graphics.Paint().apply {
-                        color = android.graphics.Color.argb(180, 148, 163, 184)
-                        textSize = 10.sp.toPx()
-                        textAlign = android.graphics.Paint.Align.CENTER
-                        isAntiAlias = true
-                    }
-
-                    val valuePaint = android.graphics.Paint().apply {
-                        color = android.graphics.Color.WHITE
-                        textSize = 11.sp.toPx()
-                        textAlign = android.graphics.Paint.Align.CENTER
-                        isFakeBoldText = true
-                        isAntiAlias = true
                     }
 
                     items.forEachIndexed { index, item ->

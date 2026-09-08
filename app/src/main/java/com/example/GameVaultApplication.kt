@@ -12,15 +12,17 @@ class GameVaultApplication : Application(), ImageLoaderFactory {
             .memoryCache {
                 MemoryCache.Builder(this)
                     .maxSizePercent(0.25)
+                    .strongReferencesEnabled(true)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(100L * 1024 * 1024) // 100 MB
+                    .maxSizeBytes(150L * 1024 * 1024) // 150 MB disk cache
                     .build()
             }
-            .crossfade(true)
+            .allowHardware(true) // Fast GPU rendering
+            .crossfade(150) // Fast and smooth 150ms transition
             .respectCacheHeaders(false)
             .build()
     }

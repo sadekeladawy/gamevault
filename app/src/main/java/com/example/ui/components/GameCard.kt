@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,17 +62,21 @@ import com.example.ui.theme.TextSecondary
 
 @Composable
 fun GameStatusBadge(status: GameStatus, modifier: Modifier = Modifier) {
-    val (bg, textCol) = when (status) {
-        GameStatus.COMPLETED -> Pair(StatusCompletedColor.copy(alpha = 0.2f), StatusCompletedColor)
-        GameStatus.CURRENTLY_PLAYING -> Pair(StatusPlayingColor.copy(alpha = 0.2f), StatusPlayingColor)
-        GameStatus.BACKLOG -> Pair(StatusBacklogColor.copy(alpha = 0.2f), StatusBacklogColor)
-        GameStatus.DROPPED -> Pair(StatusDroppedColor.copy(alpha = 0.2f), StatusDroppedColor)
+    val (bg, textCol) = remember(status) {
+        when (status) {
+            GameStatus.COMPLETED -> Pair(StatusCompletedColor.copy(alpha = 0.2f), StatusCompletedColor)
+            GameStatus.CURRENTLY_PLAYING -> Pair(StatusPlayingColor.copy(alpha = 0.2f), StatusPlayingColor)
+            GameStatus.BACKLOG -> Pair(StatusBacklogColor.copy(alpha = 0.2f), StatusBacklogColor)
+            GameStatus.DROPPED -> Pair(StatusDroppedColor.copy(alpha = 0.2f), StatusDroppedColor)
+        }
     }
+    val badgeShape = remember { RoundedCornerShape(8.dp) }
+    val borderStroke = remember(textCol) { androidx.compose.foundation.BorderStroke(1.dp, textCol.copy(alpha = 0.4f)) }
 
     Surface(
         color = bg,
-        shape = RoundedCornerShape(8.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, textCol.copy(alpha = 0.4f)),
+        shape = badgeShape,
+        border = borderStroke,
         modifier = modifier
     ) {
         Text(
@@ -91,14 +96,23 @@ fun GameCard(
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val cardShape = remember { RoundedCornerShape(16.dp) }
+    val cardBorder = remember { androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder) }
+    val placeholderGradient = remember {
+        Brush.verticalGradient(listOf(Color(0xFF22293A), Color(0xFF10131B)))
+    }
+    val coverShadowGradient = remember {
+        Brush.verticalGradient(listOf(Color.Transparent, Color(0xDD0A0D14)))
+    }
+
     Card(
         modifier = modifier
             .testTag("game_card_${game.id}")
-            .clip(RoundedCornerShape(16.dp))
+            .clip(cardShape)
             .clickable(onClick = onClick)
-            .border(1.dp, DarkCardBorder, RoundedCornerShape(16.dp)),
+            .border(cardBorder, cardShape),
         colors = CardDefaults.cardColors(containerColor = DarkCard),
-        shape = RoundedCornerShape(16.dp)
+        shape = cardShape
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Cover Image Container with 3:4 or 4:5 Poster Aspect Ratio
@@ -120,11 +134,7 @@ fun GameCard(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(Color(0xFF22293A), Color(0xFF10131B))
-                                )
-                            ),
+                            .background(placeholderGradient),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(
@@ -154,11 +164,7 @@ fun GameCard(
                         .fillMaxWidth()
                         .height(60.dp)
                         .align(Alignment.BottomCenter)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.Transparent, Color(0xDD0A0D14))
-                            )
-                        )
+                        .background(coverShadowGradient)
                 )
 
                 // Top row badges: Status badge on left, Favorite heart on right

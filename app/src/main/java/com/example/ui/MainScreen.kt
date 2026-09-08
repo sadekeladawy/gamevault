@@ -681,17 +681,6 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                         Text("Sign In", color = NeonCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
-
-                                IconButton(
-                                    onClick = { viewModel.openAddGame() },
-                                    modifier = Modifier.testTag("app_bar_add_button")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = "Add Game",
-                                        tint = NeonCyan
-                                    )
-                                }
                             },
                             colors = TopAppBarDefaults.topAppBarColors(
                                 containerColor = DarkBg,

@@ -17,6 +17,7 @@ import com.example.data.remote.rawg.RawgApiClient
 import com.example.data.remote.rawg.RawgGameDto
 import com.example.data.remote.rawg.RawgRepository
 import com.example.ui.components.AuthTab
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -27,6 +28,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -252,16 +255,16 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                 SortOption.ALPHABETICAL -> list.sortedBy { it.title.lowercase() }
                 SortOption.RELEASE_YEAR -> list.sortedByDescending { it.releaseYear }
             }
-        }.stateIn(
+        }.flowOn(Dispatchers.Default).stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
-        // Calculate statistics reactively
-        stats = allGames.combine(_currentDestination) { games, _ ->
+        // Calculate statistics reactively on background thread without recomputing on tab switch
+        stats = allGames.map { games ->
             calculateStats(games)
-        }.stateIn(
+        }.flowOn(Dispatchers.Default).stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = VaultStats()

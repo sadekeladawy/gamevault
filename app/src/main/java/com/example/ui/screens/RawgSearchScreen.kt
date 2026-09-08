@@ -445,7 +445,8 @@ fun RawgSearchScreen(
 
                         items(
                             items = searchResults,
-                            key = { it.id }
+                            key = { it.id },
+                            contentType = { "rawg_game_card" }
                         ) { gameDto ->
                             RawgGameCardItem(
                                 game = gameDto,
