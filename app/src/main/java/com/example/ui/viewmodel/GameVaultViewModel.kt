@@ -20,6 +20,7 @@ import com.example.data.remote.rawg.RawgRepository
 import com.example.ui.components.AuthTab
 import com.example.ui.components.ComparableGame
 import com.example.ui.screens.RawgFilterOptions
+import com.example.util.NetworkMonitor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -98,7 +99,9 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     private val firestoreRepository: FirestoreRepository = FirestoreRepository(application)
     private val authRepository: AuthRepository = AuthRepository(application, firestoreRepository)
     private val searchHistoryManager: SearchHistoryManager = SearchHistoryManager(application)
+    private val networkMonitor: NetworkMonitor = NetworkMonitor(application)
 
+    val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
     val searchHistory: StateFlow<List<String>> = searchHistoryManager.history
 
     private val _personalizedRecommendations = MutableStateFlow<List<RawgGameDto>>(emptyList())
@@ -1098,20 +1101,22 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         val user = currentUser.value
         val uid = user?.uid ?: ""
 
-        // Check if game is already in Vault to prevent duplicates
-        val existingGame = allGames.value.firstOrNull { it.title.equals(rawgGame.name, ignoreCase = true) }
+        // Check if game is already in Vault to prevent duplicates silently and reliably
+        val existingGame = allGames.value.firstOrNull {
+            it.title.trim().equals(rawgGame.name.trim(), ignoreCase = true) ||
+            (rawgGame.id > 0 && it.notes.contains("[RAWG_ID:${rawgGame.id}]"))
+        }
         if (existingGame != null) {
             viewModelScope.launch {
                 closeRawgGameDetails()
-                closeGameDetails()
-                _libraryFilters.value = _libraryFilters.value.copy(searchQuery = existingGame.title)
-                _currentDestination.value = NavDestination.LIBRARY
-                _snackbarMessage.emit("\"${rawgGame.name}\" is already in your Vault!")
+                openGameDetails(existingGame)
             }
             return
         }
 
         viewModelScope.launch {
+            val rawgTag = if (rawgGame.id > 0) "[RAWG_ID:${rawgGame.id}]\n" else ""
+            val rawNotes = rawgGame.descriptionRaw ?: rawgGame.description ?: "Added from RAWG / GameVault AI"
             val newGame = Game(
                 title = rawgGame.name,
                 coverUrl = rawgGame.backgroundImage ?: "",
@@ -1125,7 +1130,7 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                 metacriticScore = rawgGame.metacritic,
                 developer = rawgGame.developers?.firstOrNull()?.name ?: "",
                 publisher = rawgGame.publishers?.firstOrNull()?.name ?: "",
-                notes = rawgGame.descriptionRaw ?: rawgGame.description ?: "Added from RAWG / GameVault AI",
+                notes = rawgTag + rawNotes,
                 userId = uid
             )
 

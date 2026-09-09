@@ -42,10 +42,9 @@ import com.example.ui.components.BarChartItem
 import com.example.ui.components.CompletionBarChart
 import com.example.ui.components.StatCard
 import com.example.ui.theme.AccentAmber
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.StatusCompletedColor
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
@@ -104,7 +103,7 @@ fun StatisticsScreen(
                         title = "Hours Played",
                         value = "${stats.totalPlaytimeHours.toInt()}h",
                         icon = Icons.Outlined.Schedule,
-                        accentColor = NeonCyan,
+                        accentColor = PrimaryRed,
                         subtitle = "across all games",
                         modifier = Modifier.weight(1f)
                     )
@@ -126,7 +125,7 @@ fun StatisticsScreen(
                         title = "Streak",
                         value = "${stats.completionStreakMonths} Months",
                         icon = Icons.Outlined.CalendarToday,
-                        accentColor = CyberPurple,
+                        accentColor = PrimaryRed,
                         subtitle = "consecutive active",
                         modifier = Modifier.weight(1f)
                     )
@@ -196,9 +195,9 @@ fun StatisticsScreen(
                         stats.genreDistribution.forEachIndexed { idx, (genre, count) ->
                             val progress = count.toFloat() / totalGames
                             val color = when (idx % 3) {
-                                0 -> CyberPurple
-                                1 -> NeonCyan
-                                else -> AccentAmber
+                                0 -> PrimaryRed
+                                1 -> AccentAmber
+                                else -> StatusCompletedColor
                             }
 
                             Column(modifier = Modifier.padding(vertical = 5.dp)) {
@@ -266,9 +265,9 @@ fun StatisticsScreen(
                         stats.platformDistribution.forEachIndexed { idx, (platform, count) ->
                             val progress = count.toFloat() / totalGames
                             val color = when (idx % 3) {
-                                0 -> NeonCyan
-                                1 -> CyberPurple
-                                else -> StatusCompletedColor
+                                0 -> PrimaryRed
+                                1 -> StatusCompletedColor
+                                else -> AccentAmber
                             }
 
                             Column(modifier = Modifier.padding(vertical = 5.dp)) {

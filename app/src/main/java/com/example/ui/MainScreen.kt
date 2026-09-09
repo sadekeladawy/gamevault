@@ -165,6 +165,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
     val isCloudSyncing by viewModel.isCloudSyncing.collectAsStateWithLifecycle()
     val lastCloudSyncTimestamp by viewModel.lastCloudSyncTimestamp.collectAsStateWithLifecycle()
     val activeGamingSession by viewModel.activeGamingSession.collectAsStateWithLifecycle()
+    val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
 
     var showResetSampleConfirm by remember { mutableStateOf(false) }
     var showClearAllConfirm by remember { mutableStateOf(false) }
@@ -662,6 +663,33 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                 }
                             },
                             actions = {
+                                if (!isOnline) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = DarkCard,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder),
+                                        modifier = Modifier.padding(end = 4.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(AccentAmber)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "Offline",
+                                                color = AccentAmber,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
                                 if (currentUser != null) {
                                     IconButton(
                                         onClick = { viewModel.navigateTo(NavDestination.AUTH) },

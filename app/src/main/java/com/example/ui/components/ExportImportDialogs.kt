@@ -52,11 +52,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -96,7 +95,7 @@ fun ExportDialog(
                         Icon(
                             imageVector = Icons.Default.FileDownload,
                             contentDescription = null,
-                            tint = NeonCyan,
+                            tint = PrimaryRed,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
@@ -170,7 +169,7 @@ fun ExportDialog(
                             .weight(1.5f)
                             .testTag("copy_export_button"),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ContentCopy,
@@ -217,7 +216,7 @@ fun ImportDialog(
                         Icon(
                             imageVector = Icons.Default.FileUpload,
                             contentDescription = null,
-                            tint = CyberPurple,
+                            tint = PrimaryRed,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
@@ -258,7 +257,7 @@ fun ImportDialog(
                         .fillMaxWidth()
                         .testTag("import_json_input"),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = CyberPurple,
+                        focusedBorderColor = PrimaryRed,
                         unfocusedBorderColor = DarkCardBorder,
                         focusedTextColor = TextPrimary,
                         unfocusedTextColor = TextPrimary,
@@ -299,7 +298,7 @@ fun ImportDialog(
                             .weight(1.5f)
                             .testTag("submit_import_button"),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                     ) {
                         Icon(
                             imageVector = Icons.Default.FileUpload,

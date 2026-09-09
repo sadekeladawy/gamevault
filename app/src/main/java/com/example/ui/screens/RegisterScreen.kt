@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -70,12 +71,11 @@ import androidx.compose.ui.unit.sp
 import com.example.data.repository.AuthState
 import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.AccentRose
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
 import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -155,12 +155,12 @@ fun RegisterScreen(
                         .clip(CircleShape)
                         .background(
                             Brush.radialGradient(
-                                colors = listOf(NeonCyan.copy(alpha = 0.35f), DarkSurface)
+                                colors = listOf(PrimaryRed.copy(alpha = 0.25f), DarkSurface)
                             )
                         )
                         .border(
                             2.dp,
-                            Brush.linearGradient(listOf(NeonCyan, CyberPurple)),
+                            PrimaryRed,
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -168,7 +168,7 @@ fun RegisterScreen(
                     Icon(
                         imageVector = Icons.Outlined.PersonAdd,
                         contentDescription = "Create Account",
-                        tint = NeonCyan,
+                        tint = PrimaryRed,
                         modifier = Modifier.size(36.dp)
                     )
                 }
@@ -200,9 +200,7 @@ fun RegisterScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = DarkSurface),
-                    border = CardDefaults.outlinedCardBorder().copy(
-                        brush = Brush.horizontalGradient(listOf(CyberPurple.copy(alpha = 0.5f), NeonCyan.copy(alpha = 0.5f)))
-                    )
+                    border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.4f))
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
@@ -211,7 +209,7 @@ fun RegisterScreen(
                         Icon(
                             imageVector = Icons.Default.Info,
                             contentDescription = null,
-                            tint = NeonCyan,
+                            tint = PrimaryRed,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -365,14 +363,14 @@ fun RegisterScreen(
                                 Icon(
                                     imageVector = Icons.Default.Person,
                                     contentDescription = null,
-                                    tint = if (fullName.isNotEmpty()) NeonCyan else TextMuted
+                                    tint = if (fullName.isNotEmpty()) PrimaryRed else TextMuted
                                 )
                             },
                             singleLine = true,
                             enabled = !isLoading,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = NeonCyan,
+                                focusedBorderColor = PrimaryRed,
                                 unfocusedBorderColor = DarkCardBorder,
                                 focusedTextColor = TextPrimary,
                                 unfocusedTextColor = TextPrimary,
@@ -407,14 +405,14 @@ fun RegisterScreen(
                                 Icon(
                                     imageVector = Icons.Default.SportsEsports,
                                     contentDescription = null,
-                                    tint = if (gamerTag.isNotEmpty()) CyberPurple else TextMuted
+                                    tint = if (gamerTag.isNotEmpty()) PrimaryRed else TextMuted
                                 )
                             },
                             singleLine = true,
                             enabled = !isLoading,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = CyberPurple,
+                                focusedBorderColor = PrimaryRed,
                                 unfocusedBorderColor = DarkCardBorder,
                                 focusedTextColor = TextPrimary,
                                 unfocusedTextColor = TextPrimary,
@@ -449,7 +447,7 @@ fun RegisterScreen(
                                 Icon(
                                     imageVector = Icons.Default.Email,
                                     contentDescription = null,
-                                    tint = if (email.isNotEmpty()) NeonCyan else TextMuted
+                                    tint = if (email.isNotEmpty()) PrimaryRed else TextMuted
                                 )
                             },
                             singleLine = true,
@@ -459,7 +457,7 @@ fun RegisterScreen(
                                 imeAction = ImeAction.Next
                             ),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = NeonCyan,
+                                focusedBorderColor = PrimaryRed,
                                 unfocusedBorderColor = DarkCardBorder,
                                 focusedTextColor = TextPrimary,
                                 unfocusedTextColor = TextPrimary,
@@ -494,7 +492,7 @@ fun RegisterScreen(
                                 Icon(
                                     imageVector = Icons.Default.Lock,
                                     contentDescription = null,
-                                    tint = if (password.isNotEmpty()) CyberPurple else TextMuted
+                                    tint = if (password.isNotEmpty()) PrimaryRed else TextMuted
                                 )
                             },
                             trailingIcon = {
@@ -514,7 +512,7 @@ fun RegisterScreen(
                                 imeAction = ImeAction.Next
                             ),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = CyberPurple,
+                                focusedBorderColor = PrimaryRed,
                                 unfocusedBorderColor = DarkCardBorder,
                                 focusedTextColor = TextPrimary,
                                 unfocusedTextColor = TextPrimary,
@@ -582,7 +580,7 @@ fun RegisterScreen(
                             ),
                             keyboardActions = KeyboardActions(onDone = { performSignUp() }),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = if (confirmPassword.isNotEmpty() && confirmPassword != password) AccentRose else CyberPurple,
+                                focusedBorderColor = if (confirmPassword.isNotEmpty() && confirmPassword != password) AccentRose else PrimaryRed,
                                 unfocusedBorderColor = DarkCardBorder,
                                 focusedTextColor = TextPrimary,
                                 unfocusedTextColor = TextPrimary,
@@ -607,7 +605,7 @@ fun RegisterScreen(
                             checked = rememberMe,
                             onCheckedChange = { rememberMe = it },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = NeonCyan,
+                                checkedColor = PrimaryRed,
                                 uncheckedColor = TextMuted,
                                 checkmarkColor = DarkBg
                             ),
@@ -631,13 +629,13 @@ fun RegisterScreen(
                             .testTag("register_submit_button"),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = NeonCyan,
-                            contentColor = DarkBg
+                            containerColor = PrimaryRed,
+                            contentColor = Color.White
                         )
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
-                                color = DarkBg,
+                                color = Color.White,
                                 strokeWidth = 2.5.dp,
                                 modifier = Modifier.size(22.dp)
                             )
@@ -673,7 +671,7 @@ fun RegisterScreen(
                 ) {
                     Text(
                         text = "Sign In",
-                        color = NeonCyan,
+                        color = PrimaryRed,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )

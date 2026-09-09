@@ -81,12 +81,12 @@ import com.example.data.remote.rawg.RawgGameDto
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.AccentRose
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
 import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
+import com.example.ui.theme.PrimaryRedMuted
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -197,11 +197,11 @@ fun AddEditGameDialog(
     }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = CyberPurple,
+        focusedBorderColor = PrimaryRed,
         unfocusedBorderColor = DarkCardBorder,
         focusedTextColor = TextPrimary,
         unfocusedTextColor = TextPrimary,
-        cursorColor = NeonCyan,
+        cursorColor = PrimaryRed,
         focusedContainerColor = DarkCard,
         unfocusedContainerColor = DarkCard
     )
@@ -239,7 +239,7 @@ fun AddEditGameDialog(
                         )
                         Text(
                             text = if (isCustomGameMode) "Custom Game Entry" else "Search RAWG API database",
-                            color = if (isCustomGameMode) NeonCyan else TextSecondary,
+                            color = if (isCustomGameMode) PrimaryRed else TextSecondary,
                             fontSize = 12.sp
                         )
                     }
@@ -328,7 +328,7 @@ fun AddEditGameDialog(
                             if (isSearchingSuggestions) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(18.dp),
-                                    color = NeonCyan,
+                                    color = PrimaryRed,
                                     strokeWidth = 2.dp
                                 )
                             }
@@ -349,7 +349,7 @@ fun AddEditGameDialog(
                                 .padding(top = 4.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = DarkCard),
-                            border = BorderStroke(1.dp, CyberPurple.copy(alpha = 0.6f))
+                            border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.6f))
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 if (isSearchingSuggestions) {
@@ -362,7 +362,7 @@ fun AddEditGameDialog(
                                     ) {
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(16.dp),
-                                            color = NeonCyan,
+                                            color = PrimaryRed,
                                             strokeWidth = 2.dp
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
@@ -382,7 +382,7 @@ fun AddEditGameDialog(
                                     ) {
                                         Text(
                                             text = "RAWG SUGGESTIONS (TAP TO AUTOFILL)",
-                                            color = NeonCyan,
+                                            color = PrimaryRed,
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -502,7 +502,7 @@ fun AddEditGameDialog(
                                         ) {
                                             Text(
                                                 text = "Create as custom game instead",
-                                                color = NeonCyan,
+                                                color = PrimaryRed,
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -521,7 +521,7 @@ fun AddEditGameDialog(
                                 .fillMaxWidth()
                                 .height(130.dp)
                                 .clip(RoundedCornerShape(14.dp))
-                                .border(1.dp, CyberPurple.copy(alpha = 0.5f), RoundedCornerShape(14.dp)),
+                                .border(1.dp, PrimaryRed.copy(alpha = 0.5f), RoundedCornerShape(14.dp)),
                             colors = CardDefaults.cardColors(containerColor = DarkSurface)
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
@@ -545,7 +545,7 @@ fun AddEditGameDialog(
                                         .align(Alignment.BottomStart)
                                         .padding(8.dp),
                                     shape = RoundedCornerShape(6.dp),
-                                    color = CyberPurple.copy(alpha = 0.85f)
+                                    color = PrimaryRed.copy(alpha = 0.85f)
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -554,7 +554,7 @@ fun AddEditGameDialog(
                                         Icon(
                                             imageVector = Icons.Default.Public,
                                             contentDescription = null,
-                                            tint = NeonCyan,
+                                            tint = Color.White,
                                             modifier = Modifier.size(12.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
@@ -576,7 +576,7 @@ fun AddEditGameDialog(
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = DarkCard,
-                            border = BorderStroke(1.dp, CyberPurple.copy(alpha = 0.4f)),
+                            border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.4f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
@@ -629,7 +629,7 @@ fun AddEditGameDialog(
                                     ) {
                                         Column(modifier = Modifier.padding(8.dp)) {
                                             Text("PLATFORM", color = TextMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                            Text(platform, color = NeonCyan, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text(platform, color = PrimaryRed, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                     }
                                     Surface(
@@ -639,7 +639,7 @@ fun AddEditGameDialog(
                                     ) {
                                         Column(modifier = Modifier.padding(8.dp)) {
                                             Text("GENRE", color = TextMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                            Text(genre, color = CyberPurple, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text(genre, color = PrimaryRed, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                     }
                                 }
@@ -656,7 +656,7 @@ fun AddEditGameDialog(
                             ) {
                                 Text(
                                     text = "MANUAL ENTRY MODE",
-                                    color = NeonCyan,
+                                    color = PrimaryRed,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -693,8 +693,8 @@ fun AddEditGameDialog(
                                     onClick = { platform = p },
                                     label = { Text(p) },
                                     colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = NeonCyan.copy(alpha = 0.25f),
-                                        selectedLabelColor = NeonCyan,
+                                        selectedContainerColor = PrimaryRed.copy(alpha = 0.25f),
+                                        selectedLabelColor = PrimaryRed,
                                         containerColor = DarkCard,
                                         labelColor = TextSecondary
                                     ),
@@ -702,7 +702,7 @@ fun AddEditGameDialog(
                                         enabled = true,
                                         selected = selected,
                                         borderColor = DarkCardBorder,
-                                        selectedBorderColor = NeonCyan
+                                        selectedBorderColor = PrimaryRed
                                     )
                                 )
                             }
@@ -729,8 +729,8 @@ fun AddEditGameDialog(
                                     onClick = { genre = g },
                                     label = { Text(g) },
                                     colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = CyberPurple.copy(alpha = 0.25f),
-                                        selectedLabelColor = CyberPurple,
+                                        selectedContainerColor = PrimaryRed.copy(alpha = 0.25f),
+                                        selectedLabelColor = PrimaryRed,
                                         containerColor = DarkCard,
                                         labelColor = TextSecondary
                                     ),
@@ -738,7 +738,7 @@ fun AddEditGameDialog(
                                         enabled = true,
                                         selected = selected,
                                         borderColor = DarkCardBorder,
-                                        selectedBorderColor = CyberPurple
+                                        selectedBorderColor = PrimaryRed
                                     )
                                 )
                             }
@@ -788,8 +788,8 @@ fun AddEditGameDialog(
                                 onClick = { status = s },
                                 label = { Text(s.displayName) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = CyberPurple.copy(alpha = 0.3f),
-                                    selectedLabelColor = NeonCyan,
+                                    selectedContainerColor = PrimaryRed.copy(alpha = 0.25f),
+                                    selectedLabelColor = PrimaryRed,
                                     containerColor = DarkCard,
                                     labelColor = TextSecondary
                                 ),
@@ -797,7 +797,7 @@ fun AddEditGameDialog(
                                     enabled = true,
                                     selected = selected,
                                     borderColor = DarkCardBorder,
-                                    selectedBorderColor = CyberPurple
+                                    selectedBorderColor = PrimaryRed
                                 )
                             )
                         }
@@ -1001,7 +1001,7 @@ fun AddEditGameDialog(
                             .weight(1f)
                             .testTag("add_edit_save_button"),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                     ) {
                         Text(
                             text = if (isEditing) "Save Changes" else "Add to Vault",

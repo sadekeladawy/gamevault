@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -88,13 +89,11 @@ import com.example.ui.components.AuthTab
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.AccentRose
-import com.example.ui.theme.CyberPurple
-import com.example.ui.theme.CyberPurpleVariant
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
 import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -168,7 +167,7 @@ fun AuthScreen(
                         AuthTab.FORGOT_PASSWORD -> 2
                     },
                     containerColor = DarkSurface,
-                    contentColor = NeonCyan,
+                    contentColor = PrimaryRed,
                     indicator = { tabPositions ->
                         val index = when (currentTab) {
                             AuthTab.SIGN_IN -> 0
@@ -177,7 +176,7 @@ fun AuthScreen(
                         }
                         TabRowDefaults.SecondaryIndicator(
                             Modifier.tabIndicatorOffset(tabPositions[index]),
-                            color = NeonCyan,
+                            color = PrimaryRed,
                             height = 3.dp
                         )
                     },
@@ -190,7 +189,7 @@ fun AuthScreen(
                             Text(
                                 text = "Sign In",
                                 fontWeight = if (currentTab == AuthTab.SIGN_IN) FontWeight.Bold else FontWeight.Normal,
-                                color = if (currentTab == AuthTab.SIGN_IN) NeonCyan else TextMuted
+                                color = if (currentTab == AuthTab.SIGN_IN) PrimaryRed else TextMuted
                             )
                         },
                         modifier = Modifier.testTag("auth_tab_sign_in")
@@ -202,7 +201,7 @@ fun AuthScreen(
                             Text(
                                 text = "Register",
                                 fontWeight = if (currentTab == AuthTab.CREATE_ACCOUNT) FontWeight.Bold else FontWeight.Normal,
-                                color = if (currentTab == AuthTab.CREATE_ACCOUNT) NeonCyan else TextMuted
+                                color = if (currentTab == AuthTab.CREATE_ACCOUNT) PrimaryRed else TextMuted
                             )
                         },
                         modifier = Modifier.testTag("auth_tab_register")
@@ -214,7 +213,7 @@ fun AuthScreen(
                             Text(
                                 text = "Reset",
                                 fontWeight = if (currentTab == AuthTab.FORGOT_PASSWORD) FontWeight.Bold else FontWeight.Normal,
-                                color = if (currentTab == AuthTab.FORGOT_PASSWORD) NeonCyan else TextMuted
+                                color = if (currentTab == AuthTab.FORGOT_PASSWORD) PrimaryRed else TextMuted
                             )
                         },
                         modifier = Modifier.testTag("auth_tab_reset")
@@ -315,12 +314,12 @@ fun ForgotPasswordScreenView(
                         .clip(CircleShape)
                         .background(
                             Brush.radialGradient(
-                                colors = listOf(CyberPurple.copy(alpha = 0.4f), DarkSurface)
+                                colors = listOf(PrimaryRed.copy(alpha = 0.25f), DarkSurface)
                             )
                         )
                         .border(
                             2.dp,
-                            Brush.linearGradient(listOf(CyberPurple, NeonCyan)),
+                            PrimaryRed,
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -328,7 +327,7 @@ fun ForgotPasswordScreenView(
                     Icon(
                         imageVector = Icons.Default.LockReset,
                         contentDescription = "Reset Password",
-                        tint = NeonCyan,
+                        tint = PrimaryRed,
                         modifier = Modifier.size(36.dp)
                     )
                 }
@@ -455,7 +454,7 @@ fun ForgotPasswordScreenView(
                                 Icon(
                                     imageVector = Icons.Default.Email,
                                     contentDescription = null,
-                                    tint = if (email.isNotEmpty()) NeonCyan else TextMuted
+                                    tint = if (email.isNotEmpty()) PrimaryRed else TextMuted
                                 )
                             },
                             singleLine = true,
@@ -466,7 +465,7 @@ fun ForgotPasswordScreenView(
                             ),
                             keyboardActions = KeyboardActions(onDone = { performReset() }),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = NeonCyan,
+                                focusedBorderColor = PrimaryRed,
                                 unfocusedBorderColor = DarkCardBorder,
                                 focusedTextColor = TextPrimary,
                                 unfocusedTextColor = TextPrimary,
@@ -488,7 +487,7 @@ fun ForgotPasswordScreenView(
                             .height(50.dp)
                             .testTag("forgot_password_submit_button"),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
@@ -565,7 +564,7 @@ fun UserProfileScreenView(
                     .fillMaxWidth()
                     .border(
                         1.dp,
-                        Brush.horizontalGradient(listOf(CyberPurple.copy(alpha = 0.7f), NeonCyan.copy(alpha = 0.7f))),
+                        PrimaryRed.copy(alpha = 0.5f),
                         RoundedCornerShape(18.dp)
                     ),
                 shape = RoundedCornerShape(18.dp),
@@ -582,7 +581,7 @@ fun UserProfileScreenView(
                             .size(80.dp)
                             .clip(CircleShape)
                             .background(DarkBg)
-                            .border(2.5.dp, NeonCyan, CircleShape),
+                            .border(2.5.dp, PrimaryRed, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         if (!user.photoUrl.isNullOrBlank()) {
@@ -596,7 +595,7 @@ fun UserProfileScreenView(
                             val initial = user.fullName.firstOrNull()?.uppercase() ?: "G"
                             Text(
                                 text = initial,
-                                color = NeonCyan,
+                                color = PrimaryRed,
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )
@@ -616,12 +615,12 @@ fun UserProfileScreenView(
                     if (!user.gamerTag.isNullOrBlank()) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = CyberPurple.copy(alpha = 0.22f),
+                            color = PrimaryRed.copy(alpha = 0.15f),
                             modifier = Modifier.padding(top = 4.dp)
                         ) {
                             Text(
                                 text = if (user.gamerTag.startsWith("@")) user.gamerTag else "@${user.gamerTag}",
-                                color = NeonCyan,
+                                color = PrimaryRed,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
@@ -646,10 +645,8 @@ fun UserProfileScreenView(
                             onClick = { isEditingProfile = !isEditingProfile },
                             modifier = Modifier.weight(1f).height(38.dp),
                             shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
-                                brush = Brush.horizontalGradient(listOf(DarkCardBorder, NeonCyan.copy(alpha = 0.5f)))
-                            )
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryRed),
+                            border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.5f))
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
@@ -664,7 +661,7 @@ fun UserProfileScreenView(
                             onClick = onNavigateToLibrary,
                             modifier = Modifier.weight(1f).height(38.dp),
                             shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SportsEsports,
@@ -686,9 +683,7 @@ fun UserProfileScreenView(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = DarkCard),
-                    border = CardDefaults.outlinedCardBorder().copy(
-                        brush = Brush.horizontalGradient(listOf(NeonCyan.copy(alpha = 0.5f), CyberPurple.copy(alpha = 0.5f)))
-                    )
+                    border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.5f))
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -696,7 +691,7 @@ fun UserProfileScreenView(
                     ) {
                         Text(
                             text = "EDIT IDENTITY",
-                            color = NeonCyan,
+                            color = PrimaryRed,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
@@ -709,7 +704,7 @@ fun UserProfileScreenView(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = NeonCyan,
+                                focusedBorderColor = PrimaryRed,
                                 unfocusedBorderColor = DarkCardBorder,
                                 focusedTextColor = TextPrimary,
                                 unfocusedTextColor = TextPrimary
@@ -723,7 +718,7 @@ fun UserProfileScreenView(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = CyberPurple,
+                                focusedBorderColor = PrimaryRed,
                                 unfocusedBorderColor = DarkCardBorder,
                                 focusedTextColor = TextPrimary,
                                 unfocusedTextColor = TextPrimary
@@ -737,7 +732,7 @@ fun UserProfileScreenView(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = NeonCyan,
+                                focusedBorderColor = PrimaryRed,
                                 unfocusedBorderColor = DarkCardBorder,
                                 focusedTextColor = TextPrimary,
                                 unfocusedTextColor = TextPrimary
@@ -755,7 +750,7 @@ fun UserProfileScreenView(
                             },
                             modifier = Modifier.fillMaxWidth().height(42.dp),
                             shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = DarkBg)
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed, contentColor = Color.White)
                         ) {
                             Icon(imageVector = Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
@@ -863,7 +858,7 @@ fun UserProfileScreenView(
                         Icon(
                             imageVector = Icons.Default.CloudDone,
                             contentDescription = null,
-                            tint = NeonCyan,
+                            tint = PrimaryRed,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -900,7 +895,7 @@ fun UserProfileScreenView(
                             enabled = !isCloudSyncing,
                             modifier = Modifier.weight(1f).height(42.dp),
                             shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                         ) {
                             if (isCloudSyncing) {
                                 CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
@@ -916,10 +911,8 @@ fun UserProfileScreenView(
                             enabled = !isCloudSyncing,
                             modifier = Modifier.weight(1f).height(42.dp),
                             shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
-                                brush = Brush.horizontalGradient(listOf(DarkCardBorder, NeonCyan.copy(alpha = 0.5f)))
-                            )
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryRed),
+                            border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.5f))
                         ) {
                             Icon(imageVector = Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))

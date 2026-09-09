@@ -90,6 +90,21 @@ class RawgRepository(
             Result.success(results)
         } catch (e: IOException) {
             Log.e(TAG, "Network error during RAWG search: ${e.message}", e)
+            if (rawgCacheDao != null) {
+                try {
+                    val cached = rawgCacheDao.getCache(cacheKey)
+                    if (cached != null) {
+                        val adapter = moshi.adapter(RawgSearchResponse::class.java)
+                        val response = adapter.fromJson(cached.jsonPayload)
+                        if (response?.results != null) {
+                            Log.d(TAG, "RAWG search served from offline cache fallback (${response.results.size} games)")
+                            return@withContext Result.success(response.results)
+                        }
+                    }
+                } catch (ce: Exception) {
+                    Log.w(TAG, "Failed reading offline search cache: ${ce.message}")
+                }
+            }
             Result.failure(Exception("Network error connecting to RAWG API. Please check your internet connection.", e))
         } catch (e: HttpException) {
             val code = e.code()
@@ -145,6 +160,21 @@ class RawgRepository(
 
             Result.success(gameDetail)
         } catch (e: IOException) {
+            if (rawgCacheDao != null) {
+                try {
+                    val cached = rawgCacheDao.getCache(cacheKey)
+                    if (cached != null) {
+                        val adapter = moshi.adapter(RawgGameDto::class.java)
+                        val details = adapter.fromJson(cached.jsonPayload)
+                        if (details != null) {
+                            Log.d(TAG, "RAWG details served from offline cache fallback for $gameIdOrSlug")
+                            return@withContext Result.success(details)
+                        }
+                    }
+                } catch (ce: Exception) {
+                    Log.w(TAG, "Failed reading offline details cache: ${ce.message}")
+                }
+            }
             Result.failure(Exception("Network error connecting to RAWG API.", e))
         } catch (e: HttpException) {
             Result.failure(Exception("RAWG API error (${e.code()}).", e))
@@ -192,7 +222,22 @@ class RawgRepository(
 
             Result.success(list)
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to fetch screenshots for $gameIdOrSlug: ${e.message}")
+            Log.w(TAG, "Failed to fetch screenshots for $gameIdOrSlug from network: ${e.message}")
+            if (rawgCacheDao != null) {
+                try {
+                    val cached = rawgCacheDao.getCache(cacheKey)
+                    if (cached != null) {
+                        val adapter = moshi.adapter(RawgScreenshotResponse::class.java)
+                        val response = adapter.fromJson(cached.jsonPayload)
+                        if (response?.results != null) {
+                            Log.d(TAG, "Screenshots served from offline cache fallback for $gameIdOrSlug")
+                            return@withContext Result.success(response.results)
+                        }
+                    }
+                } catch (ce: Exception) {
+                    Log.w(TAG, "Failed reading fallback screenshot cache: ${ce.message}")
+                }
+            }
             Result.success(emptyList())
         }
     }
@@ -236,7 +281,22 @@ class RawgRepository(
 
             Result.success(list)
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to fetch trailers for $gameIdOrSlug: ${e.message}")
+            Log.w(TAG, "Failed to fetch trailers for $gameIdOrSlug from network: ${e.message}")
+            if (rawgCacheDao != null) {
+                try {
+                    val cached = rawgCacheDao.getCache(cacheKey)
+                    if (cached != null) {
+                        val adapter = moshi.adapter(RawgMovieResponse::class.java)
+                        val response = adapter.fromJson(cached.jsonPayload)
+                        if (response?.results != null) {
+                            Log.d(TAG, "Trailers served from offline cache fallback for $gameIdOrSlug")
+                            return@withContext Result.success(response.results)
+                        }
+                    }
+                } catch (ce: Exception) {
+                    Log.w(TAG, "Failed reading fallback trailer cache: ${ce.message}")
+                }
+            }
             Result.success(emptyList())
         }
     }

@@ -59,10 +59,9 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCardBorder
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 
@@ -174,7 +173,7 @@ fun TrailerPlayerDialog(
                     Icon(
                         imageVector = Icons.Default.VideogameAsset,
                         contentDescription = null,
-                        tint = NeonCyan,
+                        tint = PrimaryRed,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -231,7 +230,7 @@ fun TrailerPlayerDialog(
                                     exoPlayer.prepare()
                                     exoPlayer.play()
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = CyberPurple),
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed),
                                 shape = RoundedCornerShape(10.dp)
                             ) {
                                 Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White)
@@ -268,7 +267,7 @@ fun TrailerPlayerDialog(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    CircularProgressIndicator(color = NeonCyan)
+                                    CircularProgressIndicator(color = PrimaryRed)
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text("Loading Trailer...", color = TextMuted, fontSize = 13.sp)
                                 }

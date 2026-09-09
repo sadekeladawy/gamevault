@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -55,6 +56,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,12 +82,11 @@ import com.example.data.model.GameStatus
 import com.example.data.remote.rawg.RawgGameDto
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
 import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.StatusCompletedColor
 import com.example.ui.theme.StatusPlayingColor
 import com.example.ui.theme.TextMuted
@@ -136,6 +137,18 @@ fun RawgSearchScreen(
     var quickAddGame by remember { mutableStateOf<RawgGameDto?>(null) }
     var isFilterPanelExpanded by remember { mutableStateOf(false) }
     var isSortMenuOpen by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+
+    // Smoothly scroll to top only when the search query or active filter changes
+    var lastSearchQuery by remember { mutableStateOf(searchQuery) }
+    LaunchedEffect(searchQuery) {
+        if (searchQuery != lastSearchQuery) {
+            lastSearchQuery = searchQuery
+            if (searchResults.isNotEmpty()) {
+                listState.scrollToItem(0)
+            }
+        }
+    }
 
     Column(
         modifier = modifier
@@ -170,14 +183,14 @@ fun RawgSearchScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
-                            tint = NeonCyan
+                            tint = PrimaryRed
                         )
                     },
                     trailingIcon = {
                         if (isLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                color = NeonCyan,
+                                color = PrimaryRed,
                                 strokeWidth = 2.dp
                             )
                         } else if (searchQuery.isNotEmpty()) {
@@ -195,13 +208,13 @@ fun RawgSearchScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NeonCyan,
+                        focusedBorderColor = PrimaryRed,
                         unfocusedBorderColor = DarkCardBorder,
                         focusedContainerColor = DarkCard,
                         unfocusedContainerColor = DarkCard,
                         focusedTextColor = TextPrimary,
                         unfocusedTextColor = TextPrimary,
-                        cursorColor = NeonCyan
+                        cursorColor = PrimaryRed
                     )
                 )
 
@@ -209,11 +222,11 @@ fun RawgSearchScreen(
 
                 // Toggle Filter Panel Button
                 Surface(
-                    color = if (isFilterPanelExpanded || hasActiveFilters(filterOptions)) CyberPurple else DarkCard,
+                    color = if (isFilterPanelExpanded || hasActiveFilters(filterOptions)) PrimaryRed.copy(alpha = 0.2f) else DarkCard,
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(
                         1.dp,
-                        if (isFilterPanelExpanded || hasActiveFilters(filterOptions)) NeonCyan else DarkCardBorder
+                        if (isFilterPanelExpanded || hasActiveFilters(filterOptions)) PrimaryRed else DarkCardBorder
                     ),
                     modifier = Modifier
                         .size(48.dp)
@@ -223,7 +236,7 @@ fun RawgSearchScreen(
                         Icon(
                             imageVector = Icons.Default.FilterList,
                             contentDescription = "Toggle Filters",
-                            tint = if (isFilterPanelExpanded || hasActiveFilters(filterOptions)) Color.White else TextSecondary
+                            tint = if (isFilterPanelExpanded || hasActiveFilters(filterOptions)) PrimaryRed else TextSecondary
                         )
                     }
                 }
@@ -244,7 +257,7 @@ fun RawgSearchScreen(
                         text = "Advanced RAWG Filters",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = NeonCyan
+                        color = PrimaryRed
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -382,7 +395,7 @@ fun RawgSearchScreen(
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder)
                             ) {
-                                Icon(Icons.Default.Sort, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Default.Sort, contentDescription = null, tint = PrimaryRed, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = getOrderingLabel(filterOptions.ordering),
@@ -442,7 +455,7 @@ fun RawgSearchScreen(
                         Icon(
                             imageVector = Icons.Default.History,
                             contentDescription = null,
-                            tint = NeonCyan,
+                            tint = PrimaryRed,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -471,7 +484,7 @@ fun RawgSearchScreen(
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable { onSearchChange(historyItem) },
                             color = DarkCard,
-                            border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f)),
+                            border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.4f)),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Row(
@@ -521,16 +534,16 @@ fun RawgSearchScreen(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable { onSearchChange(suggestion) },
-                            color = if (searchQuery.equals(suggestion, ignoreCase = true)) CyberPurple.copy(alpha = 0.4f) else DarkCard,
+                            color = if (searchQuery.equals(suggestion, ignoreCase = true)) PrimaryRed.copy(alpha = 0.2f) else DarkCard,
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (searchQuery.equals(suggestion, ignoreCase = true)) NeonCyan else DarkCardBorder
+                                if (searchQuery.equals(suggestion, ignoreCase = true)) PrimaryRed else DarkCardBorder
                             ),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
                                 text = suggestion,
-                                color = if (searchQuery.equals(suggestion, ignoreCase = true)) NeonCyan else TextSecondary,
+                                color = if (searchQuery.equals(suggestion, ignoreCase = true)) PrimaryRed else TextSecondary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
@@ -544,34 +557,65 @@ fun RawgSearchScreen(
         // --- Main Content (LazyColumn with Results / Loader / Error / Empty) ---
         Box(modifier = Modifier.fillMaxSize()) {
             when {
-                // 1. Loading Indicator
+                // 1. Loading Skeleton / Indicator
                 isLoading && searchResults.isEmpty() -> {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        CircularProgressIndicator(
-                            color = NeonCyan,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Searching RAWG Video Games Database...",
-                            color = TextPrimary,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "Querying live REST endpoint api.rawg.io/api/games",
-                            color = TextMuted,
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center
-                        )
+                        repeat(4) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(110.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = DarkCard),
+                                border = BorderStroke(1.dp, DarkCardBorder)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(86.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(DarkSurface)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(0.7f)
+                                                .height(16.dp)
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(DarkSurface)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(0.4f)
+                                                .height(12.dp)
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(DarkSurface)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(0.5f)
+                                                .height(12.dp)
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(DarkSurface)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -617,7 +661,7 @@ fun RawgSearchScreen(
                         Spacer(modifier = Modifier.height(20.dp))
                         Button(
                             onClick = onRetrySearch,
-                            colors = ButtonDefaults.buttonColors(containerColor = CyberPurple),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
@@ -644,26 +688,26 @@ fun RawgSearchScreen(
                             modifier = Modifier
                                 .size(64.dp)
                                 .clip(CircleShape)
-                                .background(NeonCyan.copy(alpha = 0.12f)),
+                                .background(PrimaryRed.copy(alpha = 0.12f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = null,
-                                tint = NeonCyan,
+                                tint = PrimaryRed,
                                 modifier = Modifier.size(32.dp)
                             )
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "No Games Found",
+                            text = "No games found.",
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 17.sp
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "No games matched your query and active filters. Try adjusting your search criteria.",
+                            text = "Try a different search or filter.",
                             color = TextMuted,
                             fontSize = 13.sp,
                             textAlign = TextAlign.Center,
@@ -686,15 +730,13 @@ fun RawgSearchScreen(
                             modifier = Modifier
                                 .size(72.dp)
                                 .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(listOf(CyberPurple.copy(alpha = 0.3f), NeonCyan.copy(alpha = 0.2f)))
-                                ),
+                                .background(PrimaryRed.copy(alpha = 0.12f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.VideogameAsset,
                                 contentDescription = null,
-                                tint = NeonCyan,
+                                tint = PrimaryRed,
                                 modifier = Modifier.size(38.dp)
                             )
                         }
@@ -720,11 +762,12 @@ fun RawgSearchScreen(
                 // 5. Results List (LazyColumn with game cards)
                 else -> {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 90.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        item {
+                        item(key = "results_header") {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -741,7 +784,7 @@ fun RawgSearchScreen(
                                 if (isLoading) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(16.dp),
-                                        color = NeonCyan,
+                                        color = PrimaryRed,
                                         strokeWidth = 2.dp
                                     )
                                 }
@@ -792,10 +835,10 @@ private fun FilterChipItem(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .clickable { onClick() },
-        color = if (isSelected) CyberPurple else DarkCard,
+        color = if (isSelected) PrimaryRed else DarkCard,
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (isSelected) NeonCyan else DarkCardBorder
+            if (isSelected) PrimaryRed else DarkCardBorder
         ),
         shape = RoundedCornerShape(8.dp)
     ) {
@@ -1018,13 +1061,13 @@ fun RawgGameCardItem(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(CyberPurple.copy(alpha = 0.18f))
-                                    .border(0.5.dp, CyberPurple.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                    .background(DarkSurface)
+                                    .border(0.5.dp, DarkCardBorder, RoundedCornerShape(6.dp))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = platformName,
-                                    color = NeonCyan,
+                                    color = TextSecondary,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -1036,37 +1079,27 @@ fun RawgGameCardItem(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 if (isInVault) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                when (vaultGame?.status) {
-                                    GameStatus.COMPLETED -> StatusCompletedColor.copy(alpha = 0.15f)
-                                    GameStatus.CURRENTLY_PLAYING -> StatusPlayingColor.copy(alpha = 0.15f)
-                                    else -> NeonCyan.copy(alpha = 0.15f)
-                                }
-                            )
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    OutlinedButton(
+                        onClick = onCardClick,
+                        modifier = Modifier.height(34.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                        border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.5f)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = PrimaryRed.copy(alpha = 0.12f),
+                            contentColor = PrimaryRed
+                        )
                     ) {
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
-                            tint = when (vaultGame?.status) {
-                                GameStatus.COMPLETED -> StatusCompletedColor
-                                GameStatus.CURRENTLY_PLAYING -> StatusPlayingColor
-                                else -> NeonCyan
-                            },
+                            tint = PrimaryRed,
                             modifier = Modifier.size(14.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
                             text = "In Vault: ${vaultGame?.status?.displayName ?: "Tracked"}",
-                            color = when (vaultGame?.status) {
-                                GameStatus.COMPLETED -> StatusCompletedColor
-                                GameStatus.CURRENTLY_PLAYING -> StatusPlayingColor
-                                else -> NeonCyan
-                            },
+                            color = PrimaryRed,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1077,8 +1110,8 @@ fun RawgGameCardItem(
                         modifier = Modifier.height(34.dp),
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, CyberPurple),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan)
+                        border = BorderStroke(1.dp, PrimaryRed),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryRed)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
@@ -1129,7 +1162,7 @@ fun RawgQuickAddDialog(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = game.name,
-                    color = NeonCyan,
+                    color = PrimaryRed,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -1154,10 +1187,10 @@ fun RawgQuickAddDialog(
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) CyberPurple.copy(alpha = 0.25f) else DarkSurface)
+                            .background(if (isSelected) PrimaryRed.copy(alpha = 0.2f) else DarkSurface)
                             .border(
                                 1.dp,
-                                if (isSelected) NeonCyan else DarkCardBorder,
+                                if (isSelected) PrimaryRed else DarkCardBorder,
                                 RoundedCornerShape(8.dp)
                             )
                             .clickable { selectedStatus = status }
@@ -1175,7 +1208,7 @@ fun RawgQuickAddDialog(
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
-                                tint = NeonCyan,
+                                tint = PrimaryRed,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -1199,7 +1232,7 @@ fun RawgQuickAddDialog(
                     Button(
                         onClick = { onConfirmAdd(selectedStatus) },
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                     ) {
                         Text("Add Game", fontWeight = FontWeight.Bold)
                     }

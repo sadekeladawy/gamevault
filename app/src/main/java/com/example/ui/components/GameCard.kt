@@ -1,5 +1,10 @@
 package com.example.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,12 +37,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -242,6 +249,20 @@ fun GameCard(
                         }
                     }
 
+                    val favScale by animateFloatAsState(
+                        targetValue = if (game.isFavorite) 1.22f else 1.0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        ),
+                        label = "fav_scale"
+                    )
+                    val favTint by animateColorAsState(
+                        targetValue = if (game.isFavorite) AccentRose else Color.White.copy(alpha = 0.85f),
+                        animationSpec = tween(durationMillis = 200),
+                        label = "fav_tint"
+                    )
+
                     IconButton(
                         onClick = onFavClick,
                         modifier = Modifier
@@ -253,8 +274,10 @@ fun GameCard(
                         Icon(
                             imageVector = if (game.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                             contentDescription = "Favorite",
-                            tint = if (game.isFavorite) AccentRose else Color.White.copy(alpha = 0.85f),
-                            modifier = Modifier.size(18.dp)
+                            tint = favTint,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .graphicsLayer(scaleX = favScale, scaleY = favScale)
                         )
                     }
                 }

@@ -79,12 +79,11 @@ import com.example.data.repository.AuthState
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.AccentRose
-import com.example.ui.theme.CyberPurple
-import com.example.ui.theme.CyberPurpleVariant
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
+import com.example.ui.theme.PrimaryRedMuted
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -162,7 +161,7 @@ fun AuthDialog(
                 .fillMaxWidth(0.94f)
                 .padding(vertical = 24.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .border(1.dp, Brush.verticalGradient(listOf(CyberPurple, DarkCardBorder)), RoundedCornerShape(24.dp)),
+                .border(1.dp, Brush.verticalGradient(listOf(PrimaryRed.copy(alpha = 0.5f), DarkCardBorder)), RoundedCornerShape(24.dp)),
             color = DarkCard,
             tonalElevation = 8.dp
         ) {
@@ -187,7 +186,7 @@ fun AuthDialog(
                             modifier = Modifier
                                 .size(42.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Brush.linearGradient(listOf(CyberPurple, NeonCyan))),
+                                .background(Brush.linearGradient(listOf(PrimaryRed, PrimaryRedMuted))),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -206,7 +205,7 @@ fun AuthDialog(
                             )
                             Text(
                                 text = if (isFirebaseConfigured) "Cloud Sync & Profile" else "Offline Vault Profile",
-                                color = if (isFirebaseConfigured) NeonCyan else TextSecondary,
+                                color = if (isFirebaseConfigured) PrimaryRed else TextSecondary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -245,7 +244,7 @@ fun AuthDialog(
                     tabs.forEach { (tab, label) ->
                         val isSelected = selectedTab == tab
                         val backgroundModifier = if (isSelected) {
-                            Modifier.background(Brush.horizontalGradient(listOf(CyberPurpleVariant, CyberPurple)))
+                            Modifier.background(Brush.horizontalGradient(listOf(PrimaryRedMuted, PrimaryRed)))
                         } else {
                             Modifier.background(Color.Transparent)
                         }
@@ -418,8 +417,8 @@ fun AuthDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(NeonCyan.copy(alpha = 0.12f))
-                            .border(1.dp, NeonCyan.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .background(AccentEmerald.copy(alpha = 0.12f))
+                            .border(1.dp, AccentEmerald.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -427,12 +426,12 @@ fun AuthDialog(
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Success",
-                            tint = NeonCyan,
+                            tint = AccentEmerald,
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
                             text = authState.message,
-                            color = NeonCyan,
+                            color = AccentEmerald,
                             fontSize = 11.sp
                         )
                     }
@@ -574,7 +573,7 @@ fun AuthDialog(
                                             onCheckedChange = { rememberMe = it },
                                             enabled = !isLoading,
                                             colors = CheckboxDefaults.colors(
-                                                checkedColor = CyberPurple,
+                                                checkedColor = PrimaryRed,
                                                 checkmarkColor = Color.White
                                             )
                                         )
@@ -591,7 +590,7 @@ fun AuthDialog(
                                     ) {
                                         Text(
                                             text = "Forgot password?",
-                                            color = NeonCyan,
+                                            color = PrimaryRed,
                                             fontSize = 12.sp
                                         )
                                     }
@@ -617,7 +616,7 @@ fun AuthDialog(
                                         .height(50.dp)
                                         .testTag("auth_signin_button"),
                                     shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                                 ) {
                                     if (isLoading) {
                                         CircularProgressIndicator(
@@ -757,7 +756,7 @@ fun AuthDialog(
                                         onCheckedChange = { rememberMe = it },
                                         enabled = !isLoading,
                                         colors = CheckboxDefaults.colors(
-                                            checkedColor = CyberPurple,
+                                            checkedColor = PrimaryRed,
                                             checkmarkColor = Color.White
                                         )
                                     )
@@ -792,7 +791,7 @@ fun AuthDialog(
                                         .height(50.dp)
                                         .testTag("auth_signup_button"),
                                     shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                                 ) {
                                     if (isLoading) {
                                         CircularProgressIndicator(
@@ -856,7 +855,7 @@ fun AuthDialog(
                                         .height(50.dp)
                                         .testTag("auth_reset_button"),
                                     shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                                 ) {
                                     if (isLoading) {
                                         CircularProgressIndicator(
@@ -881,7 +880,7 @@ fun AuthDialog(
                                 ) {
                                     Text(
                                         text = "Back to Sign In",
-                                        color = NeonCyan,
+                                        color = PrimaryRed,
                                         fontSize = 13.sp
                                     )
                                 }
@@ -918,7 +917,7 @@ fun AuthDialog(
                         Icon(
                             imageVector = Icons.Default.Info,
                             contentDescription = null,
-                            tint = NeonCyan,
+                            tint = PrimaryRed,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
@@ -936,9 +935,9 @@ fun AuthDialog(
 
 @Composable
 private fun authTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = CyberPurple,
+    focusedBorderColor = PrimaryRed,
     unfocusedBorderColor = DarkCardBorder,
-    focusedLabelColor = CyberPurple,
+    focusedLabelColor = PrimaryRed,
     unfocusedLabelColor = TextSecondary,
     focusedTextColor = TextPrimary,
     unfocusedTextColor = TextPrimary,

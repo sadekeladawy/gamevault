@@ -47,12 +47,11 @@ import com.example.data.model.Game
 import com.example.data.remote.rawg.RawgGameDto
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
 import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -136,7 +135,7 @@ fun GameComparisonDialog(
                         Icon(
                             imageVector = Icons.Default.CompareArrows,
                             contentDescription = null,
-                            tint = NeonCyan,
+                            tint = PrimaryRed,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -199,7 +198,7 @@ private fun ComparisonHeaderCard(game: ComparableGame, modifier: Modifier = Modi
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = DarkCard),
-        border = BorderStroke(1.dp, CyberPurple.copy(alpha = 0.5f)),
+        border = BorderStroke(1.dp, DarkCardBorder),
         shape = RoundedCornerShape(14.dp)
     ) {
         Column(
@@ -257,7 +256,7 @@ private fun ComparisonMetricRow(
             Text(
                 text = label,
                 fontSize = 10.sp,
-                color = NeonCyan,
+                color = PrimaryRed,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )

@@ -2,9 +2,12 @@ package com.example.ui.components
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,6 +37,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
@@ -74,6 +78,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -307,6 +312,20 @@ fun GameDetailDialog(
 
                     // Favorite button top-right (if in Vault)
                     if (game != null && onToggleFavorite != null) {
+                        val favScale by animateFloatAsState(
+                            targetValue = if (game.isFavorite) 1.25f else 1.0f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            ),
+                            label = "detail_fav_scale"
+                        )
+                        val favTint by animateColorAsState(
+                            targetValue = if (game.isFavorite) AccentRose else Color.White,
+                            animationSpec = tween(durationMillis = 200),
+                            label = "detail_fav_tint"
+                        )
+
                         IconButton(
                             onClick = onToggleFavorite,
                             modifier = Modifier
@@ -319,7 +338,10 @@ fun GameDetailDialog(
                             Icon(
                                 imageVector = if (game.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                 contentDescription = "Favorite",
-                                tint = if (game.isFavorite) AccentRose else Color.White
+                                tint = favTint,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .graphicsLayer(scaleX = favScale, scaleY = favScale)
                             )
                         }
                     }
@@ -490,6 +512,23 @@ fun GameDetailDialog(
                                     )
                                 )
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+                    } else if (isInVault && (rawgGameDto != null || fullRawgDetails != null)) {
+                        // "View in Vault" Banner Button for already added game
+                        Button(
+                            onClick = {
+                                val targetDto = fullRawgDetails ?: rawgGameDto!!
+                                onAddToVault?.invoke(targetDto, GameStatus.BACKLOG)
+                            },
+                            colors = ButtonDefaults.filledTonalButtonColors(containerColor = PrimaryRed.copy(alpha = 0.2f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = null, tint = PrimaryRed)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("View in Vault", fontWeight = FontWeight.Bold, color = PrimaryRed)
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))

@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -76,12 +77,11 @@ import com.example.data.repository.AuthState
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.AccentRose
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
 import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -168,12 +168,12 @@ fun SignInScreen(
                         .clip(CircleShape)
                         .background(
                             Brush.radialGradient(
-                                colors = listOf(CyberPurple.copy(alpha = 0.4f), DarkSurface)
+                                colors = listOf(PrimaryRed.copy(alpha = 0.25f), DarkSurface)
                             )
                         )
                         .border(
                             2.dp,
-                            Brush.linearGradient(listOf(NeonCyan, CyberPurple)),
+                            PrimaryRed,
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -181,7 +181,7 @@ fun SignInScreen(
                     Icon(
                         imageVector = Icons.Outlined.VideogameAsset,
                         contentDescription = "GameVault Logo",
-                        tint = NeonCyan,
+                        tint = PrimaryRed,
                         modifier = Modifier.size(36.dp)
                     )
                 }
@@ -213,7 +213,7 @@ fun SignInScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = DarkSurface),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = Brush.horizontalGradient(listOf(CyberPurple.copy(alpha = 0.5f), NeonCyan.copy(alpha = 0.5f))))
+                    border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.4f))
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
@@ -222,7 +222,7 @@ fun SignInScreen(
                         Icon(
                             imageVector = Icons.Default.Info,
                             contentDescription = null,
-                            tint = NeonCyan,
+                            tint = PrimaryRed,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -350,10 +350,8 @@ fun SignInScreen(
                                 .fillMaxWidth()
                                 .height(40.dp),
                             shape = RoundedCornerShape(10.dp),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
-                                brush = Brush.horizontalGradient(listOf(NeonCyan, CyberPurple))
-                            ),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan)
+                            border = BorderStroke(1.dp, PrimaryRed),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryRed)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
@@ -461,10 +459,8 @@ fun SignInScreen(
                         .fillMaxWidth()
                         .testTag("sign_in_verification_sent_card"),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = NeonCyan.copy(alpha = 0.12f)),
-                    border = CardDefaults.outlinedCardBorder().copy(
-                        brush = Brush.horizontalGradient(listOf(NeonCyan, NeonCyan.copy(alpha = 0.6f)))
-                    )
+                    colors = CardDefaults.cardColors(containerColor = PrimaryRed.copy(alpha = 0.12f)),
+                    border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.5f))
                 ) {
                     Row(
                         modifier = Modifier.padding(14.dp),
@@ -474,12 +470,12 @@ fun SignInScreen(
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Success",
-                            tint = NeonCyan,
+                            tint = PrimaryRed,
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
                             text = authState.message,
-                            color = NeonCyan,
+                            color = PrimaryRed,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -555,7 +551,7 @@ fun SignInScreen(
                                 Icon(
                                     imageVector = Icons.Default.Email,
                                     contentDescription = null,
-                                    tint = if (email.isNotEmpty()) NeonCyan else TextMuted
+                                    tint = if (email.isNotEmpty()) PrimaryRed else TextMuted
                                 )
                             },
                             singleLine = true,
@@ -565,7 +561,7 @@ fun SignInScreen(
                                 imeAction = ImeAction.Next
                             ),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = NeonCyan,
+                                focusedBorderColor = PrimaryRed,
                                 unfocusedBorderColor = DarkCardBorder,
                                 focusedTextColor = TextPrimary,
                                 unfocusedTextColor = TextPrimary,
@@ -600,7 +596,7 @@ fun SignInScreen(
                             ) {
                                 Text(
                                     text = "Forgot password?",
-                                    color = NeonCyan,
+                                    color = PrimaryRed,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -618,7 +614,7 @@ fun SignInScreen(
                                 Icon(
                                     imageVector = Icons.Default.Lock,
                                     contentDescription = null,
-                                    tint = if (password.isNotEmpty()) CyberPurple else TextMuted
+                                    tint = if (password.isNotEmpty()) PrimaryRed else TextMuted
                                 )
                             },
                             trailingIcon = {
@@ -639,7 +635,7 @@ fun SignInScreen(
                             ),
                             keyboardActions = KeyboardActions(onDone = { performSignIn() }),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = CyberPurple,
+                                focusedBorderColor = PrimaryRed,
                                 unfocusedBorderColor = DarkCardBorder,
                                 focusedTextColor = TextPrimary,
                                 unfocusedTextColor = TextPrimary,
@@ -664,7 +660,7 @@ fun SignInScreen(
                             checked = rememberMe,
                             onCheckedChange = { rememberMe = it },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = NeonCyan,
+                                checkedColor = PrimaryRed,
                                 uncheckedColor = TextMuted,
                                 checkmarkColor = DarkBg
                             ),
@@ -688,7 +684,7 @@ fun SignInScreen(
                             .testTag("sign_in_submit_button"),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = CyberPurple,
+                            containerColor = PrimaryRed,
                             contentColor = Color.White
                         )
                     ) {
@@ -718,10 +714,8 @@ fun SignInScreen(
                             .height(44.dp)
                             .testTag("sign_in_quick_demo_button"),
                         shape = RoundedCornerShape(12.dp),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = Brush.horizontalGradient(listOf(DarkCardBorder, NeonCyan.copy(alpha = 0.5f)))
-                        ),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan)
+                        border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.5f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryRed)
                     ) {
                         Icon(
                             imageVector = Icons.Default.SportsEsports,
@@ -757,7 +751,7 @@ fun SignInScreen(
                 ) {
                     Text(
                         text = "Create Account",
-                        color = NeonCyan,
+                        color = PrimaryRed,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )

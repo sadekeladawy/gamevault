@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -69,12 +70,11 @@ import com.example.data.model.UserProfile
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.AccentRose
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
 import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -113,7 +113,7 @@ fun UserProfileDialog(
                 .fillMaxWidth(0.94f)
                 .padding(vertical = 24.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .border(1.dp, Brush.verticalGradient(listOf(NeonCyan.copy(alpha = 0.6f), DarkCardBorder)), RoundedCornerShape(24.dp)),
+                .border(1.dp, Brush.verticalGradient(listOf(PrimaryRed.copy(alpha = 0.5f), DarkCardBorder)), RoundedCornerShape(24.dp)),
             color = DarkCard,
             tonalElevation = 8.dp
         ) {
@@ -155,7 +155,7 @@ fun UserProfileDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = DarkSurface),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = Brush.horizontalGradient(listOf(CyberPurple.copy(alpha = 0.4f), NeonCyan.copy(alpha = 0.4f))))
+                    border = BorderStroke(1.dp, DarkCardBorder)
                 ) {
                     Column(
                         modifier = Modifier
@@ -168,7 +168,7 @@ fun UserProfileDialog(
                             modifier = Modifier
                                 .size(76.dp)
                                 .clip(CircleShape)
-                                .border(2.dp, Brush.sweepGradient(listOf(CyberPurple, NeonCyan, CyberPurple)), CircleShape)
+                                .border(2.dp, PrimaryRed, CircleShape)
                                 .background(DarkBg),
                             contentAlignment = Alignment.Center
                         ) {
@@ -183,7 +183,7 @@ fun UserProfileDialog(
                                 val initial = user.fullName.firstOrNull()?.uppercase() ?: "G"
                                 Text(
                                     text = initial,
-                                    color = NeonCyan,
+                                    color = PrimaryRed,
                                     fontSize = 32.sp,
                                     fontWeight = FontWeight.ExtraBold
                                 )
@@ -202,7 +202,7 @@ fun UserProfileDialog(
                         if (!user.gamerTag.isNullOrBlank()) {
                             Text(
                                 text = "@${user.gamerTag}",
-                                color = NeonCyan,
+                                color = PrimaryRed,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -279,11 +279,11 @@ fun UserProfileDialog(
                                         Icon(
                                             imageVector = Icons.Default.Email,
                                             contentDescription = null,
-                                            tint = NeonCyan,
+                                            tint = PrimaryRed,
                                             modifier = Modifier.size(14.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Send Link", color = NeonCyan, fontSize = 11.sp)
+                                        Text("Send Link", color = PrimaryRed, fontSize = 11.sp)
                                     }
 
                                     IconButton(
@@ -310,7 +310,7 @@ fun UserProfileDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = DarkSurface),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = Brush.horizontalGradient(listOf(DarkCardBorder, DarkCardBorder)))
+                    border = BorderStroke(1.dp, DarkCardBorder)
                 ) {
                     Column(
                         modifier = Modifier
@@ -330,7 +330,7 @@ fun UserProfileDialog(
                                 Icon(
                                     imageVector = Icons.Default.CloudDone,
                                     contentDescription = null,
-                                    tint = NeonCyan,
+                                    tint = PrimaryRed,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
@@ -344,7 +344,7 @@ fun UserProfileDialog(
                             if (isCloudSyncing) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(18.dp),
-                                    color = NeonCyan,
+                                    color = PrimaryRed,
                                     strokeWidth = 2.dp
                                 )
                             }
@@ -384,7 +384,7 @@ fun UserProfileDialog(
                                 enabled = !isCloudSyncing,
                                 modifier = Modifier.weight(1f).height(40.dp).testTag("cloud_sync_button"),
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.CloudUpload,
@@ -400,8 +400,8 @@ fun UserProfileDialog(
                                 enabled = !isCloudSyncing,
                                 modifier = Modifier.weight(1f).height(40.dp).testTag("cloud_restore_button"),
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan),
-                                border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.linearGradient(listOf(NeonCyan, CyberPurple)))
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryRed),
+                                border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.6f))
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.CloudDownload,
@@ -483,7 +483,7 @@ fun UserProfileDialog(
                                     isEditing = false
                                 },
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                             ) {
                                 Text("Save Profile")
                             }
@@ -496,7 +496,7 @@ fun UserProfileDialog(
                         onClick = { isEditing = true },
                         modifier = Modifier.fillMaxWidth().height(42.dp),
                         shape = RoundedCornerShape(12.dp),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.horizontalGradient(listOf(DarkCardBorder, DarkCardBorder))),
+                        border = BorderStroke(1.dp, DarkCardBorder),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
                     ) {
                         Icon(imageVector = Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -593,9 +593,9 @@ fun UserProfileDialog(
 
 @Composable
 private fun editFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = CyberPurple,
+    focusedBorderColor = PrimaryRed,
     unfocusedBorderColor = DarkCardBorder,
-    focusedLabelColor = CyberPurple,
+    focusedLabelColor = PrimaryRed,
     unfocusedLabelColor = TextSecondary,
     focusedTextColor = TextPrimary,
     unfocusedTextColor = TextPrimary,

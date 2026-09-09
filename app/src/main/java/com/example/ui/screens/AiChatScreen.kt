@@ -111,10 +111,17 @@ fun AiChatScreen(
 
     val listState = rememberLazyListState()
 
-    // Auto-scroll to the bottom when new messages arrive
+    val showSuggestions = messages.size <= 1
+    val totalItems = (if (showSuggestions) 1 else 0) + messages.size + (if (isThinking) 1 else 0)
+
+    // Smooth, non-jumping scroll to bottom when new messages arrive or thinking begins
     LaunchedEffect(messages.size, isThinking) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+        if (totalItems > 0) {
+            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            val isNearBottom = lastVisibleIndex >= totalItems - 3 || messages.lastOrNull()?.sender == MessageSender.USER
+            if (isNearBottom) {
+                listState.animateScrollToItem(totalItems - 1)
+            }
         }
     }
 
@@ -142,8 +149,8 @@ fun AiChatScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 // Quick Suggestion Chips Header on start
-                if (messages.size <= 1) {
-                    item {
+                if (showSuggestions) {
+                    item(key = "suggested_prompts") {
                         SuggestedPromptsSection(
                             onPromptClick = { prompt ->
                                 viewModel.sendMessage(prompt, userBacklog)
@@ -164,7 +171,7 @@ fun AiChatScreen(
                 }
 
                 if (isThinking) {
-                    item {
+                    item(key = "thinking_indicator") {
                         ThinkingIndicatorItem()
                     }
                 }
