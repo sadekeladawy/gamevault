@@ -33,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.VideogameAsset
@@ -113,6 +115,7 @@ fun GameDetailDialog(
     onEdit: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
     onToggleFavorite: (() -> Unit)? = null,
+    onArchiveToggle: ((Game) -> Unit)? = null,
     onStatusChange: ((GameStatus) -> Unit)? = null,
     onAddToVault: ((RawgGameDto, GameStatus) -> Unit)? = null,
     onSelectSimilarGame: ((RawgGameDto) -> Unit)? = null,
@@ -323,10 +326,41 @@ fun GameDetailDialog(
                             .align(Alignment.BottomStart)
                             .padding(horizontal = 18.dp, vertical = 10.dp)
                     ) {
-                        if (game != null) {
-                            GameStatusBadge(status = game.status)
-                        } else if (isInVault) {
-                            GameStatusBadge(status = vaultGameStatus ?: GameStatus.BACKLOG)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (game != null) {
+                                GameStatusBadge(status = game.status)
+                                if (game.isArchived) {
+                                    Surface(
+                                        color = AccentAmber.copy(alpha = 0.2f),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, AccentAmber.copy(alpha = 0.5f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Archive,
+                                                contentDescription = null,
+                                                tint = AccentAmber,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Text(
+                                                text = "Archived",
+                                                color = AccentAmber,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    }
+                                }
+                            } else if (isInVault) {
+                                GameStatusBadge(status = vaultGameStatus ?: GameStatus.BACKLOG)
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -365,6 +399,43 @@ fun GameDetailDialog(
 
                 // Body content
                 Column(modifier = Modifier.padding(18.dp)) {
+
+                    if (game?.isArchived == true) {
+                        Surface(
+                            color = AccentAmber.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, AccentAmber.copy(alpha = 0.35f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Archive,
+                                    contentDescription = null,
+                                    tint = AccentAmber,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Column {
+                                    Text(
+                                        text = "Archived / Hidden Game",
+                                        color = AccentAmber,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                    Text(
+                                        text = "Hidden from your active library view to keep focus on current projects. You can unarchive it anytime.",
+                                        color = TextSecondary,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     if (isLoadingDetails) {
                         Row(
@@ -899,46 +970,80 @@ fun GameDetailDialog(
                         }
                     }
 
-                    // Action buttons for Vault Game (Edit, Delete)
-                    if (game != null && onEdit != null && onDelete != null) {
+                    // Action buttons for Vault Game (Archive, Edit, Delete)
+                    if (game != null) {
                         Spacer(modifier = Modifier.height(24.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = onDelete,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("detail_delete_button"),
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, AccentRose.copy(alpha = 0.5f))
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.DeleteOutline,
-                                    contentDescription = null,
-                                    tint = AccentRose,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "Delete", color = AccentRose)
-                            }
 
-                            FilledTonalButton(
-                                onClick = onEdit,
+                        if (onArchiveToggle != null) {
+                            OutlinedButton(
+                                onClick = { onArchiveToggle(game) },
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("detail_edit_button"),
-                                shape = RoundedCornerShape(12.dp)
+                                    .fillMaxWidth()
+                                    .testTag("detail_archive_button"),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (game.isArchived) AccentEmerald.copy(alpha = 0.6f) else NeonCyan.copy(alpha = 0.4f)
+                                ),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (game.isArchived) AccentEmerald.copy(alpha = 0.12f) else DarkCard
+                                )
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Edit,
+                                    imageVector = if (game.isArchived) Icons.Default.Unarchive else Icons.Default.Archive,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = if (game.isArchived) AccentEmerald else NeonCyan,
                                     modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "Edit Game", color = Color.White)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = if (game.isArchived) "Unarchive Game (Restore to Active Library)" else "Archive Game (Hide from Active Library)",
+                                    color = if (game.isArchived) AccentEmerald else NeonCyan,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
+                        if (onEdit != null && onDelete != null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = onDelete,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("detail_delete_button"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, AccentRose.copy(alpha = 0.5f))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = null,
+                                        tint = AccentRose,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(text = "Delete", color = AccentRose)
+                                }
+
+                                FilledTonalButton(
+                                    onClick = onEdit,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("detail_edit_button"),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(text = "Edit Game", color = Color.White)
+                                }
                             }
                         }
                     }

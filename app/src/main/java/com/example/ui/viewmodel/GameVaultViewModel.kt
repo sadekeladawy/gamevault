@@ -65,7 +65,8 @@ data class LibraryFilters(
     val selectedPlatform: String? = null,
     val selectedGenre: String? = null,
     val selectedStatus: GameStatus? = null,
-    val sortOption: SortOption = SortOption.RECENTLY_COMPLETED
+    val sortOption: SortOption = SortOption.RECENTLY_COMPLETED,
+    val showArchived: Boolean = false
 )
 
 data class VaultStats(
@@ -77,6 +78,7 @@ data class VaultStats(
     val wishlistCount: Int = 0,
     val droppedCount: Int = 0,
     val favoritesCount: Int = 0,
+    val archivedCount: Int = 0,
     val totalPlaytimeHours: Double = 0.0,
     val averageRating: Double = 0.0,
     val averagePersonalRating: Double = 0.0,
@@ -240,6 +242,13 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         // Filter and sort games reactively
         filteredGames = combine(allGames, _libraryFilters, _currentDestination) { games, filters, destination ->
             var list = games
+
+            // Archive/Hide filter: keep library focused on current projects by hiding archived games by default
+            list = if (filters.showArchived) {
+                list.filter { it.isArchived }
+            } else {
+                list.filter { !it.isArchived }
+            }
 
             // If on a destination-specific view, pre-filter by that status or favorite
             when (destination) {
@@ -487,6 +496,7 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
             backlogCount = backlog.size,
             droppedCount = dropped.size,
             favoritesCount = favorites.size,
+            archivedCount = games.count { it.isArchived },
             totalPlaytimeHours = totalPlaytime,
             averageRating = avgRating,
             completionStreakMonths = streak,
@@ -565,6 +575,47 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         _libraryFilters.value = _libraryFilters.value.copy(sortOption = sort)
     }
 
+    fun setShowArchived(show: Boolean) {
+        _libraryFilters.value = _libraryFilters.value.copy(showArchived = show)
+    }
+
+    fun toggleShowArchived() {
+        _libraryFilters.value = _libraryFilters.value.copy(showArchived = !_libraryFilters.value.showArchived)
+    }
+
+    fun toggleArchiveGame(game: Game) {
+        val newArchivedState = !game.isArchived
+        val updated = game.copy(isArchived = newArchivedState)
+        val user = currentUser.value
+        viewModelScope.launch {
+            repository.setArchived(game, newArchivedState)
+            if (user != null) {
+                firestoreRepository.saveUserGame(user.uid, updated)
+            }
+            if (_selectedGameForDetails.value?.id == game.id) {
+                _selectedGameForDetails.value = updated
+            }
+            val message = if (newArchivedState) {
+                "Archived \"${game.title}\" (hidden from active library)"
+            } else {
+                "Restored \"${game.title}\" to active library"
+            }
+            _snackbarMessage.emit(message)
+        }
+    }
+
+    fun archiveGame(game: Game) {
+        if (!game.isArchived) {
+            toggleArchiveGame(game)
+        }
+    }
+
+    fun unarchiveGame(game: Game) {
+        if (game.isArchived) {
+            toggleArchiveGame(game)
+        }
+    }
+
     fun openGameDetails(game: Game) {
         _selectedGameForDetails.value = game
     }
@@ -638,6 +689,7 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                 }
                 _snackbarMessage.emit("Added \"$title\" to your Vault")
             } else {
+                val existingGame = allGames.value.find { it.id == id }
                 val updatedGame = Game(
                     id = id,
                     title = title,
@@ -651,8 +703,14 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                     } else completionDate,
                     playtimeHours = playtimeHours,
                     rating = rating,
+                    rawgRating = existingGame?.rawgRating ?: 0.0,
+                    metacriticScore = existingGame?.metacriticScore,
+                    developer = existingGame?.developer.orEmpty(),
+                    publisher = existingGame?.publisher.orEmpty(),
                     notes = notes,
                     isFavorite = isFavorite,
+                    isArchived = existingGame?.isArchived ?: false,
+                    createdAt = existingGame?.createdAt ?: System.currentTimeMillis(),
                     userId = uid
                 )
                 repository.updateGame(updatedGame)

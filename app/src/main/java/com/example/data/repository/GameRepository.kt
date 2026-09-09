@@ -48,6 +48,10 @@ class GameRepository(
         gameDao.updateGame(game.copy(isFavorite = !game.isFavorite))
     }
 
+    suspend fun setArchived(game: Game, isArchived: Boolean) = withContext(Dispatchers.IO) {
+        gameDao.updateGame(game.copy(isArchived = isArchived))
+    }
+
     // --- RAWG Video Games API (Real Network Requests) ---
 
     /**
@@ -214,6 +218,7 @@ class GameRepository(
                 put("rating", game.rating)
                 put("notes", game.notes)
                 put("isFavorite", game.isFavorite)
+                put("isArchived", game.isArchived)
                 put("createdAt", game.createdAt)
             }
             jsonArray.put(obj)
@@ -223,14 +228,14 @@ class GameRepository(
 
     suspend fun exportToCsv(games: List<Game>): String = withContext(Dispatchers.Default) {
         val sb = StringBuilder()
-        sb.append("Title,Platform,Genre,ReleaseYear,Status,CompletionDate,PlaytimeHours,Rating,Favorite,Notes\n")
+        sb.append("Title,Platform,Genre,ReleaseYear,Status,CompletionDate,PlaytimeHours,Rating,Favorite,Archived,Notes\n")
         for (g in games) {
             val title = "\"${g.title.replace("\"", "\"\"")}\""
             val platform = "\"${g.platform.replace("\"", "\"\"")}\""
             val genre = "\"${g.genre.replace("\"", "\"\"")}\""
             val notes = "\"${g.notes.replace("\"", "\"\"")}\""
             val compDate = g.completionDate ?: ""
-            sb.append("$title,$platform,$genre,${g.releaseYear},${g.status.name},$compDate,${g.playtimeHours},${g.rating},${g.isFavorite},$notes\n")
+            sb.append("$title,$platform,$genre,${g.releaseYear},${g.status.name},$compDate,${g.playtimeHours},${g.rating},${g.isFavorite},${g.isArchived},$notes\n")
         }
         sb.toString()
     }
@@ -254,6 +259,7 @@ class GameRepository(
                     rating = obj.optInt("rating", 0).coerceIn(0, 10),
                     notes = obj.optString("notes", ""),
                     isFavorite = obj.optBoolean("isFavorite", false),
+                    isArchived = obj.optBoolean("isArchived", false),
                     createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
                     userId = userId
                 )

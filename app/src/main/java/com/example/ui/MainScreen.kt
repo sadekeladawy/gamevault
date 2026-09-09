@@ -873,6 +873,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                 onEdit = { viewModel.openEditGame(game) },
                 onDelete = { viewModel.confirmDeleteGame(game) },
                 onToggleFavorite = { viewModel.toggleFavorite(game) },
+                onArchiveToggle = { viewModel.toggleArchiveGame(it) },
                 onStatusChange = { newStatus -> viewModel.updateGameStatus(game, newStatus) }
             )
         }
@@ -1083,12 +1084,15 @@ fun ScreenRouter(
             LibraryScreen(
                 title = "All Games",
                 games = filteredGames,
+                allVaultGames = allGames,
                 filters = filters,
                 showStatusFilter = true,
+                showArchiveToggle = true,
                 onSearchChange = { viewModel.setSearchQuery(it) },
                 onStatusChange = { viewModel.setStatusFilter(it) },
                 onPlatformChange = { viewModel.setPlatformFilter(it) },
                 onSortChange = { viewModel.setSortOption(it) },
+                onToggleShowArchived = { viewModel.toggleShowArchived() },
                 onGameClick = { viewModel.openGameDetails(it) },
                 onToggleFavorite = { viewModel.toggleFavorite(it) },
                 onAddGame = { viewModel.openAddGame() }
@@ -1099,8 +1103,10 @@ fun ScreenRouter(
             LibraryScreen(
                 title = "Completed Games",
                 games = filteredGames,
+                allVaultGames = allGames,
                 filters = filters,
                 showStatusFilter = false,
+                showArchiveToggle = false,
                 onSearchChange = { viewModel.setSearchQuery(it) },
                 onStatusChange = {},
                 onPlatformChange = { viewModel.setPlatformFilter(it) },
@@ -1115,8 +1121,10 @@ fun ScreenRouter(
             LibraryScreen(
                 title = "Currently Playing",
                 games = filteredGames,
+                allVaultGames = allGames,
                 filters = filters,
                 showStatusFilter = false,
+                showArchiveToggle = false,
                 onSearchChange = { viewModel.setSearchQuery(it) },
                 onStatusChange = {},
                 onPlatformChange = { viewModel.setPlatformFilter(it) },
@@ -1131,8 +1139,10 @@ fun ScreenRouter(
             LibraryScreen(
                 title = "Game Backlog",
                 games = filteredGames,
+                allVaultGames = allGames,
                 filters = filters,
                 showStatusFilter = false,
+                showArchiveToggle = false,
                 onSearchChange = { viewModel.setSearchQuery(it) },
                 onStatusChange = {},
                 onPlatformChange = { viewModel.setPlatformFilter(it) },
@@ -1147,8 +1157,10 @@ fun ScreenRouter(
             LibraryScreen(
                 title = "Favorite Games",
                 games = filteredGames,
+                allVaultGames = allGames,
                 filters = filters,
                 showStatusFilter = true,
+                showArchiveToggle = false,
                 onSearchChange = { viewModel.setSearchQuery(it) },
                 onStatusChange = { viewModel.setStatusFilter(it) },
                 onPlatformChange = { viewModel.setPlatformFilter(it) },

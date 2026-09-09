@@ -20,25 +20,33 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.outlined.VideogameAssetOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,6 +66,8 @@ import com.example.data.model.Game
 import com.example.data.model.GameStatus
 import com.example.ui.components.CommonPlatforms
 import com.example.ui.components.GameCard
+import com.example.ui.theme.AccentAmber
+import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
@@ -73,18 +83,30 @@ import com.example.ui.viewmodel.SortOption
 fun LibraryScreen(
     title: String = "My Game Library",
     games: List<Game>,
+    allVaultGames: List<Game> = emptyList(),
     filters: LibraryFilters,
     showStatusFilter: Boolean = true,
+    showArchiveToggle: Boolean = true,
     onSearchChange: (String) -> Unit,
     onStatusChange: (GameStatus?) -> Unit,
     onPlatformChange: (String?) -> Unit,
     onSortChange: (SortOption) -> Unit,
+    onToggleShowArchived: (() -> Unit)? = null,
     onGameClick: (Game) -> Unit,
     onToggleFavorite: (Game) -> Unit,
     onAddGame: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isSortMenuOpen by remember { mutableStateOf(false) }
+
+    val totalVaultGames = if (allVaultGames.isNotEmpty()) allVaultGames else games
+    val activeGamesCount = totalVaultGames.count { !it.isArchived }
+    val archivedGamesCount = totalVaultGames.count { it.isArchived }
+    val completedGamesCount = totalVaultGames.count { it.status == GameStatus.COMPLETED && !it.isArchived }
+    val completionRatio = if (activeGamesCount > 0) {
+        (completedGamesCount.toFloat() / activeGamesCount.toFloat()).coerceIn(0f, 1f)
+    } else 0f
+    val completionPercentageInt = (completionRatio * 100).toInt()
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 155.dp),
@@ -104,13 +126,17 @@ fun LibraryScreen(
                 ) {
                     Column {
                         Text(
-                            text = title,
+                            text = if (filters.showArchived) "Archived Games" else title,
                             color = TextPrimary,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "${games.size} ${if (games.size == 1) "game" else "games"}",
+                            text = if (filters.showArchived) {
+                                "${games.size} ${if (games.size == 1) "game" else "games"} hidden from active library"
+                            } else {
+                                "${games.size} ${if (games.size == 1) "game" else "games"}"
+                            },
                             color = TextSecondary,
                             fontSize = 13.sp
                         )
@@ -167,6 +193,157 @@ fun LibraryScreen(
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
+
+                // Progress Summary Card at the top of Library
+                if (totalVaultGames.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("library_progress_card"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = DarkCard),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(AccentEmerald.copy(alpha = 0.15f))
+                                            .border(1.dp, AccentEmerald.copy(alpha = 0.3f), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = AccentEmerald,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            text = "Completion Progress",
+                                            color = TextPrimary,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            text = "$completedGamesCount of $activeGamesCount games completed",
+                                            color = TextSecondary,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+
+                                Surface(
+                                    color = AccentEmerald.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, AccentEmerald.copy(alpha = 0.4f))
+                                ) {
+                                    Text(
+                                        text = "$completionPercentageInt%",
+                                        color = AccentEmerald,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            LinearProgressIndicator(
+                                progress = { completionRatio },
+                                color = AccentEmerald,
+                                trackColor = Color(0xFF1E2536),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp))
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+
+                // Active vs Archived View Toggle Chips
+                if (showArchiveToggle && onToggleShowArchived != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FilterChip(
+                            selected = !filters.showArchived,
+                            onClick = { if (filters.showArchived) onToggleShowArchived() },
+                            label = { Text("Active Library ($activeGamesCount)") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Folder,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = NeonCyan.copy(alpha = 0.2f),
+                                selectedLabelColor = NeonCyan,
+                                selectedLeadingIconColor = NeonCyan,
+                                containerColor = DarkCard,
+                                labelColor = TextSecondary
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = !filters.showArchived,
+                                borderColor = DarkCardBorder,
+                                selectedBorderColor = NeonCyan
+                            ),
+                            modifier = Modifier.testTag("filter_chip_active_games")
+                        )
+
+                        FilterChip(
+                            selected = filters.showArchived,
+                            onClick = { if (!filters.showArchived) onToggleShowArchived() },
+                            label = { Text("Archived ($archivedGamesCount)") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Archive,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = AccentAmber.copy(alpha = 0.2f),
+                                selectedLabelColor = AccentAmber,
+                                selectedLeadingIconColor = AccentAmber,
+                                containerColor = DarkCard,
+                                labelColor = TextSecondary
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = filters.showArchived,
+                                borderColor = DarkCardBorder,
+                                selectedBorderColor = AccentAmber
+                            ),
+                            modifier = Modifier.testTag("filter_chip_archived_games")
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
                 // Search Bar
                 OutlinedTextField(
@@ -330,9 +507,9 @@ fun LibraryScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.VideogameAssetOff,
+                                imageVector = if (filters.showArchived) Icons.Default.Archive else Icons.Outlined.VideogameAssetOff,
                                 contentDescription = null,
-                                tint = CyberPurple.copy(alpha = 0.7f),
+                                tint = if (filters.showArchived) AccentAmber.copy(alpha = 0.8f) else CyberPurple.copy(alpha = 0.7f),
                                 modifier = Modifier.size(36.dp)
                             )
                         }
@@ -340,7 +517,7 @@ fun LibraryScreen(
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Text(
-                            text = "No Games Found",
+                            text = if (filters.showArchived) "No Archived Games" else "No Games Found",
                             color = TextPrimary,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
@@ -349,7 +526,9 @@ fun LibraryScreen(
                         Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text = if (filters.searchQuery.isNotBlank() || filters.selectedPlatform != null || filters.selectedStatus != null) {
+                            text = if (filters.showArchived) {
+                                "You haven't hidden or archived any games yet. Open any game in your library and tap \"Archive Game\" to tuck it away and keep your active library focused."
+                            } else if (filters.searchQuery.isNotBlank() || filters.selectedPlatform != null || filters.selectedStatus != null) {
                                 "No games match your active filters. Try adjusting search or clearing filters."
                             } else {
                                 "Your vault is currently empty. Add your first video game to start tracking!"

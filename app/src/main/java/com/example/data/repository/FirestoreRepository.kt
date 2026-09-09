@@ -211,6 +211,7 @@ class FirestoreRepository(private val context: Context) {
                 "publisher" to game.publisher,
                 "notes" to game.notes,
                 "isFavorite" to game.isFavorite,
+                "isArchived" to game.isArchived,
                 "createdAt" to game.createdAt,
                 "userId" to uid,
                 "updatedAt" to System.currentTimeMillis()
@@ -371,6 +372,7 @@ class FirestoreRepository(private val context: Context) {
                     publisher = data["publisher"] as? String ?: "",
                     notes = data["notes"] as? String ?: "",
                     isFavorite = data["isFavorite"] as? Boolean ?: false,
+                    isArchived = data["isArchived"] as? Boolean ?: false,
                     createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
                     updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
                     userId = uid

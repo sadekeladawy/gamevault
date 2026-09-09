@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 import com.example.data.model.Converters
 import com.example.data.model.Game
 
-@Database(entities = [Game::class, RawgCacheEntity::class], version = 4, exportSchema = false)
+@Database(entities = [Game::class, RawgCacheEntity::class], version = 5, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gameDao(): GameDao

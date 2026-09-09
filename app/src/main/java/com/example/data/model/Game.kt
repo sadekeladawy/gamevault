@@ -38,6 +38,7 @@ data class Game(
     val publisher: String = "",
     val notes: String = "",
     val isFavorite: Boolean = false,
+    val isArchived: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val userId: String = ""
