@@ -111,7 +111,8 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     private val _lastCloudSyncTimestamp = MutableStateFlow<Long?>(null)
     val lastCloudSyncTimestamp: StateFlow<Long?> = _lastCloudSyncTimestamp.asStateFlow()
 
-    private val _currentDestination = MutableStateFlow(NavDestination.AUTH)
+    // Guest Mode is the default: the app opens straight into the Dashboard, signed in or not.
+    private val _currentDestination = MutableStateFlow(NavDestination.DASHBOARD)
     val currentDestination: StateFlow<NavDestination> = _currentDestination.asStateFlow()
 
     private val _libraryFilters = MutableStateFlow(LibraryFilters())
@@ -169,7 +170,16 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     val hasSearchedRawg: StateFlow<Boolean> = _hasSearchedRawg.asStateFlow()
 
     private var rawgSearchJob: Job? = null
-    private var activeSessionUserId: String? = null
+
+    // Identity key used to scope the local Room cache. Guests (signed-out / unverified users)
+    // share the empty-string key so their locally-added games persist across app restarts,
+    // exactly like a real account's games would, without ever touching Firestore.
+    private var activeSessionKey: String = GUEST_SESSION_KEY
+    private var isSessionInitialized: Boolean = false
+
+    companion object {
+        private const val GUEST_SESSION_KEY = ""
+    }
 
     init {
         val db = AppDatabase.getDatabase(application)
@@ -189,17 +199,14 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
 
-        // Check auto-login on startup
+        // Check auto-login on startup. Authentication is optional: the app already opens on
+        // the Dashboard (Guest Mode by default — see _currentDestination above) regardless of
+        // whether this resolves to a signed-in user, and we never force-navigate away from
+        // wherever the person may already be tapping. handleUserSessionChanged() (below) takes
+        // care of loading the right data set: cloud games for a verified user, or the Guest's
+        // own persisted local library.
         viewModelScope.launch {
             authRepository.checkAutoLogin()
-            val user = authRepository.currentUser.value
-            if (user != null && user.isEmailVerified) {
-                _currentDestination.value = NavDestination.DASHBOARD
-            } else {
-                _currentDestination.value = NavDestination.AUTH
-                // Clear any leftover data when unauthenticated
-                repository.clearAllGames()
-            }
         }
 
         // Filter and sort games reactively
@@ -273,26 +280,44 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         loadPopularRawgGames()
     }
 
+    /**
+     * Keeps the local Room cache isolated per identity: Guest Mode (no verified user) has its
+     * own local-only library, and every authenticated account has its own Firestore-backed
+     * library under users/{uid}. Whenever the active identity changes we clear the local cache
+     * and reload the correct data set so no previous user's (or guest's) games can leak into
+     * the new session.
+     *
+     * On cold start we do NOT clear anything if the resolved identity is Guest, so a Guest's
+     * own locally-added games survive an app restart instead of being wiped every launch.
+     */
     private suspend fun handleUserSessionChanged(user: UserProfile?) {
-        if (user != null && user.isEmailVerified) {
-            if (activeSessionUserId != user.uid) {
-                Log.i("GameVaultViewModel", "Switching active session to user: ${user.uid}")
-                activeSessionUserId = user.uid
-                // 1. Clear Room database so no previous user's games linger
-                repository.clearAllGames()
-                // 2. Clear transient in-memory state
-                clearTransientState()
-                // 3. Load only this authenticated user's games from Firestore (users/{uid}/games)
-                loadUserGamesFromCloud(user.uid)
-            }
-        } else {
-            // User signed out or not verified
-            if (activeSessionUserId != null) {
-                Log.i("GameVaultViewModel", "User logged out. Clearing local cache.")
-                activeSessionUserId = null
+        val newKey = if (user != null && user.isEmailVerified) user.uid else GUEST_SESSION_KEY
+
+        if (!isSessionInitialized) {
+            isSessionInitialized = true
+            activeSessionKey = newKey
+            if (newKey != GUEST_SESSION_KEY) {
+                // App launched already signed in (auto-login): start from a clean slate and
+                // load this user's cloud games so no stray local data is visible.
+                Log.i("GameVaultViewModel", "Starting session for authenticated user: $newKey")
                 repository.clearAllGames()
                 clearTransientState()
+                loadUserGamesFromCloud(newKey)
             }
+            // else: cold start in Guest Mode — leave the Guest's existing local library as-is.
+            return
+        }
+
+        if (activeSessionKey != newKey) {
+            Log.i("GameVaultViewModel", "Switching active session: '$activeSessionKey' -> '$newKey'")
+            activeSessionKey = newKey
+            // Clear local Room cache so the previous identity's games never bleed into the new one.
+            repository.clearAllGames()
+            clearTransientState()
+            if (newKey != GUEST_SESSION_KEY) {
+                loadUserGamesFromCloud(newKey)
+            }
+            // else: switched back to Guest Mode — starts with an empty local library, per design.
         }
     }
 
@@ -446,15 +471,14 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         )
     }
 
+    /**
+     * Navigation is always allowed, signed in or not: Dashboard, Search, game discovery,
+     * Settings, and the rest of the app are open to Guests. Individual actions that genuinely
+     * require an account (Cloud Sync, Restore from Cloud, etc.) are gated at the point of use
+     * — see syncLibraryToCloud() / restoreLibraryFromCloud() — where a Guest is offered a
+     * friendly Sign In / Create Account prompt instead of being blocked from the whole app.
+     */
     fun navigateTo(destination: NavDestination) {
-        val user = currentUser.value
-        if (destination != NavDestination.AUTH && (user == null || !user.isEmailVerified)) {
-            _currentDestination.value = NavDestination.AUTH
-            viewModelScope.launch {
-                _snackbarMessage.emit("Please sign in with a verified email to access the app.")
-            }
-            return
-        }
         _currentDestination.value = destination
     }
 
@@ -807,14 +831,15 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun signOut() {
         viewModelScope.launch {
-            activeSessionUserId = null
-            // Clear local Room database completely so next user doesn't see previous user's games
+            // Clear local Room database completely so no trace of this account's games remains,
+            // then return the user to a fresh, empty Guest Mode session instead of a Sign In wall.
+            activeSessionKey = GUEST_SESSION_KEY
             repository.clearAllGames()
             clearTransientState()
             authRepository.signOut()
-            _currentDestination.value = NavDestination.AUTH
+            _currentDestination.value = NavDestination.DASHBOARD
             _isProfileModalOpen.value = false
-            _snackbarMessage.emit("Signed out of GameVault.")
+            _snackbarMessage.emit("Signed out. You're browsing as a Guest.")
         }
     }
 

@@ -13,7 +13,7 @@ object RawgApiClient {
      * Hardcoded RAWG API Key as requested.
      * Users can obtain a free key at https://rawg.io/apidocs
      */
-    const val HARDCODED_RAWG_API_KEY = "c542e67aec3a4340908f9de9e86038af"
+    const val HARDCODED_RAWG_API_KEY = "f63b923ffe2c4982a204425ec383a3e4"
 
     private const val BASE_URL = "https://api.rawg.io/"
 

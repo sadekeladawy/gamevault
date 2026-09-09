@@ -9,13 +9,16 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -169,6 +172,13 @@ fun MainScreen(viewModel: GameVaultViewModel) {
         }
     }
 
+    // Root composable surface. Deliberately carries NO WindowInsets padding of its own: this
+    // Box paints the dark background across the entire window, including underneath the
+    // transparent status/navigation bars and out into the device's physical rounded display
+    // corners (which the OS compositor clips the window to). Interactive content further down
+    // the tree (the Sidebar and both Scaffolds below) explicitly consumes WindowInsets.safeDrawing
+    // so it stays clear of system bars, cutouts, and rounded corners without the background
+    // itself ever stopping short of the true screen edge.
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(DarkBg)) {
         val isWideScreen = maxWidth >= 760.dp
 
@@ -186,6 +196,12 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            // The Surface behind this Column already extends full-height to the
+                            // physical screen edge; the Column itself insets its content (logo,
+                            // buttons, nav items) away from the status bar / rounded top corner
+                            // and the nav bar / rounded bottom corner using real device insets —
+                            // no hardcoded corner radius or bar height anywhere.
+                            .windowInsetsPadding(WindowInsets.safeDrawing)
                             .padding(16.dp)
                     ) {
                         // Brand Logo Header
@@ -375,6 +391,10 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                 Scaffold(
                     modifier = Modifier.weight(1f),
                     containerColor = DarkBg,
+                    // Explicit WindowInsets handling: content is padded away from the status
+                    // bar, navigation bar, and display cutouts/rounded corners using the
+                    // device's actual reported safe-drawing insets, never a fixed value.
+                    contentWindowInsets = WindowInsets.safeDrawing,
                     snackbarHost = { SnackbarHost(snackbarHostState) }
                 ) { paddingValues ->
                     Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
@@ -609,6 +629,12 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                 }
             ) {
                 Scaffold(
+                    // Explicit WindowInsets handling for the mobile compact layout: the
+                    // TopAppBar/NavigationBar below consume the status/navigation bar insets
+                    // themselves, and the content area is padded using the device's actual
+                    // safe-drawing insets so nothing sits under a system bar or a physically
+                    // rounded corner — computed live per device, never hardcoded.
+                    contentWindowInsets = WindowInsets.safeDrawing,
                     topBar = {
                         TopAppBar(
                             title = {
