@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,7 +20,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.VideogameAsset
@@ -38,12 +38,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
 import com.example.ui.theme.AccentAmber
@@ -59,11 +61,13 @@ import com.example.ui.theme.StatusPlayingColor
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import java.util.Locale
 
 @Composable
 fun GameStatusBadge(status: GameStatus, modifier: Modifier = Modifier) {
     val (bg, textCol) = remember(status) {
         when (status) {
+            GameStatus.WISHLIST -> Pair(CyberPurple.copy(alpha = 0.25f), NeonCyan)
             GameStatus.COMPLETED -> Pair(StatusCompletedColor.copy(alpha = 0.2f), StatusCompletedColor)
             GameStatus.CURRENTLY_PLAYING -> Pair(StatusPlayingColor.copy(alpha = 0.2f), StatusPlayingColor)
             GameStatus.BACKLOG -> Pair(StatusBacklogColor.copy(alpha = 0.2f), StatusBacklogColor)
@@ -71,7 +75,7 @@ fun GameStatusBadge(status: GameStatus, modifier: Modifier = Modifier) {
         }
     }
     val badgeShape = remember { RoundedCornerShape(8.dp) }
-    val borderStroke = remember(textCol) { androidx.compose.foundation.BorderStroke(1.dp, textCol.copy(alpha = 0.4f)) }
+    val borderStroke = remember(textCol) { BorderStroke(1.dp, textCol.copy(alpha = 0.4f)) }
 
     Surface(
         color = bg,
@@ -96,6 +100,7 @@ fun GameCard(
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val cardShape = remember { RoundedCornerShape(16.dp) }
     val cardBorder = remember { androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder) }
     val placeholderGradient = remember {
@@ -105,26 +110,50 @@ fun GameCard(
         Brush.verticalGradient(listOf(Color.Transparent, Color(0xDD0A0D14)))
     }
 
+    val imageRequest = remember(game.coverUrl, context) {
+        if (game.coverUrl.isNotBlank()) {
+            ImageRequest.Builder(context)
+                .data(game.coverUrl)
+                .crossfade(150)
+                .build()
+        } else null
+    }
+
+    val ratingText = remember(game.rating, game.rawgRating) {
+        when {
+            game.rating > 0 -> "My Rating: ${game.rating}/10"
+            game.rawgRating > 0 -> String.format(Locale.US, "Rating: %.1f/5.0", game.rawgRating)
+            else -> "Unrated"
+        }
+    }
+
+    val playtimeText = remember(game.playtimeHours) {
+        "${game.playtimeHours.toInt()}h"
+    }
+
+    val onCardClick = remember(game.id, onClick) { onClick }
+    val onFavClick = remember(game.id, onToggleFavorite) { onToggleFavorite }
+
     Card(
         modifier = modifier
             .testTag("game_card_${game.id}")
             .clip(cardShape)
-            .clickable(onClick = onClick)
+            .clickable(onClick = onCardClick)
             .border(cardBorder, cardShape),
         colors = CardDefaults.cardColors(containerColor = DarkCard),
         shape = cardShape
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Cover Image Container with 3:4 or 4:5 Poster Aspect Ratio
+            // Cover Image Container with 3:4 Poster Aspect Ratio
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(0.72f)
                     .background(Color(0xFF151924))
             ) {
-                if (game.coverUrl.isNotBlank()) {
+                if (imageRequest != null) {
                     AsyncImage(
-                        model = game.coverUrl,
+                        model = imageRequest,
                         contentDescription = "${game.title} cover",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -178,7 +207,7 @@ fun GameCard(
                     GameStatusBadge(status = game.status)
 
                     IconButton(
-                        onClick = onToggleFavorite,
+                        onClick = onFavClick,
                         modifier = Modifier
                             .size(34.dp)
                             .clip(CircleShape)
@@ -253,30 +282,12 @@ fun GameCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Rating Pill
-                    if (game.rating > 0) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = null,
-                                tint = AccentAmber,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = "${game.rating}/10",
-                                color = TextPrimary,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    } else {
-                        Text(
-                            text = "Unrated",
-                            color = TextMuted,
-                            fontSize = 10.sp
-                        )
-                    }
+                    Text(
+                        text = ratingText,
+                        color = if (game.rating > 0 || game.rawgRating > 0) AccentAmber else TextMuted,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
 
                     // Playtime
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -288,7 +299,7 @@ fun GameCard(
                         )
                         Spacer(modifier = Modifier.width(3.dp))
                         Text(
-                            text = "${game.playtimeHours.toInt()}h",
+                            text = playtimeText,
                             color = TextSecondary,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium

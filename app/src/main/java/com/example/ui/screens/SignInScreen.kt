@@ -290,6 +290,14 @@ fun SignInScreen(
                             }
                         }
 
+                        // Notice about Spam/Junk folder
+                        Text(
+                            text = "💡 Please check your Inbox, Spam/Junk, or Promotions folder for the link. Once clicked, tap 'Check Verification Status' below.",
+                            color = TextMuted,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp
+                        )
+
                         // Resend Verification Email Button
                         Button(
                             onClick = {
@@ -300,7 +308,7 @@ fun SignInScreen(
                             enabled = !isResendingEmail,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(44.dp)
+                                .height(42.dp)
                                 .testTag("sign_in_resend_verification_button"),
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(
@@ -333,6 +341,27 @@ fun SignInScreen(
                                     fontSize = 13.sp
                                 )
                             }
+                        }
+
+                        // Check Verification Status Button
+                        OutlinedButton(
+                            onClick = { performSignIn() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            border = ButtonDefaults.outlinedButtonBorder.copy(
+                                brush = Brush.horizontalGradient(listOf(NeonCyan, CyberPurple))
+                            ),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Check Verification Status", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     }
                 }

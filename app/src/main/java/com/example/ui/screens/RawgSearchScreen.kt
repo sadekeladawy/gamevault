@@ -1,6 +1,9 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,14 +27,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.VideogameAsset
 import androidx.compose.material3.Button
@@ -61,12 +65,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import coil.request.ImageRequest
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
@@ -84,6 +91,7 @@ import com.example.ui.theme.StatusPlayingColor
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import java.util.Locale
 
 private val POPULAR_RAWG_SEARCHES = listOf(
     "Elden Ring",
@@ -96,7 +104,15 @@ private val POPULAR_RAWG_SEARCHES = listOf(
     "Red Dead Redemption 2"
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+data class RawgFilterOptions(
+    val selectedGenre: String? = null,
+    val selectedPlatform: String? = null,
+    val selectedYearRange: String? = null, // e.g. "2020-01-01,2026-12-31"
+    val minMetacritic: Int? = null,
+    val ordering: String = "-rating"
+)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun RawgSearchScreen(
     searchQuery: String,
@@ -104,21 +120,29 @@ fun RawgSearchScreen(
     isLoading: Boolean,
     errorMessage: String?,
     hasSearched: Boolean,
+    filterOptions: RawgFilterOptions,
+    searchHistory: List<String> = emptyList(),
     onSearchChange: (String) -> Unit,
+    onFilterChange: (RawgFilterOptions) -> Unit,
+    onClearSearchHistory: () -> Unit = {},
+    onRemoveSearchQuery: (String) -> Unit = {},
     onRetrySearch: () -> Unit,
+    onSelectGame: (RawgGameDto) -> Unit,
     onAddGameToVault: (RawgGameDto, GameStatus) -> Unit,
     isGameInVault: (String) -> Boolean,
     getVaultGame: (String) -> Game?,
     modifier: Modifier = Modifier
 ) {
     var quickAddGame by remember { mutableStateOf<RawgGameDto?>(null) }
+    var isFilterPanelExpanded by remember { mutableStateOf(false) }
+    var isSortMenuOpen by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .testTag("rawg_search_screen")
     ) {
-        // --- Search Input Box (Sends request automatically) ---
+        // --- Search Input Box + Filters Toggle Bar ---
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -133,11 +157,11 @@ fun RawgSearchScreen(
                     value = searchQuery,
                     onValueChange = { onSearchChange(it) },
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .weight(1f)
                         .testTag("rawg_search_input_field"),
                     placeholder = {
                         Text(
-                            text = "Search 500,000+ games on RAWG...",
+                            text = "Search games or use filters...",
                             color = TextMuted,
                             fontSize = 14.sp
                         )
@@ -152,16 +176,13 @@ fun RawgSearchScreen(
                     trailingIcon = {
                         if (isLoading) {
                             CircularProgressIndicator(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .testTag("rawg_search_trailing_loader"),
+                                modifier = Modifier.size(20.dp),
                                 color = NeonCyan,
                                 strokeWidth = 2.dp
                             )
                         } else if (searchQuery.isNotEmpty()) {
                             IconButton(
-                                onClick = { onSearchChange("") },
-                                modifier = Modifier.testTag("rawg_search_clear_button")
+                                onClick = { onSearchChange("") }
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Clear,
@@ -183,9 +204,301 @@ fun RawgSearchScreen(
                         cursorColor = NeonCyan
                     )
                 )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Toggle Filter Panel Button
+                Surface(
+                    color = if (isFilterPanelExpanded || hasActiveFilters(filterOptions)) CyberPurple else DarkCard,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(
+                        1.dp,
+                        if (isFilterPanelExpanded || hasActiveFilters(filterOptions)) NeonCyan else DarkCardBorder
+                    ),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clickable { isFilterPanelExpanded = !isFilterPanelExpanded }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.FilterList,
+                            contentDescription = "Toggle Filters",
+                            tint = if (isFilterPanelExpanded || hasActiveFilters(filterOptions)) Color.White else TextSecondary
+                        )
+                    }
+                }
+            }
+
+            // Expandable Filter Options Panel
+            AnimatedVisibility(
+                visible = isFilterPanelExpanded,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                ) {
+                    Text(
+                        text = "Advanced RAWG Filters",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = NeonCyan
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Genre Selector
+                    Text("Genre:", fontSize = 11.sp, color = TextMuted)
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        val genres = listOf("All", "Action", "RPG", "Shooter", "Adventure", "Strategy", "Indie", "Horror", "Racing", "Sports", "Puzzle")
+                        items(genres) { genre ->
+                            val isSelected = (genre == "All" && filterOptions.selectedGenre == null) ||
+                                    filterOptions.selectedGenre.equals(genre, ignoreCase = true) ||
+                                    (genre == "RPG" && filterOptions.selectedGenre == "5") ||
+                                    (genre == "Action" && filterOptions.selectedGenre == "4") ||
+                                    (genre == "Shooter" && filterOptions.selectedGenre == "2")
+                            FilterChipItem(
+                                label = genre,
+                                isSelected = isSelected,
+                                onClick = {
+                                    val newGenre = when (genre) {
+                                        "All" -> null
+                                        "RPG" -> "5"
+                                        "Action" -> "4"
+                                        "Shooter" -> "2"
+                                        "Adventure" -> "3"
+                                        "Strategy" -> "10"
+                                        "Indie" -> "51"
+                                        else -> genre.lowercase()
+                                    }
+                                    onFilterChange(filterOptions.copy(selectedGenre = newGenre))
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Platform Selector
+                    Text("Platform:", fontSize = 11.sp, color = TextMuted)
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        val platforms = listOf("All", "PC", "PlayStation", "Xbox", "Switch", "Android")
+                        items(platforms) { platform ->
+                            val isSelected = (platform == "All" && filterOptions.selectedPlatform == null) ||
+                                    (platform == "PC" && filterOptions.selectedPlatform == "4") ||
+                                    (platform == "PlayStation" && filterOptions.selectedPlatform == "187,18") ||
+                                    (platform == "Xbox" && filterOptions.selectedPlatform == "186,1") ||
+                                    (platform == "Switch" && filterOptions.selectedPlatform == "7")
+                            FilterChipItem(
+                                label = platform,
+                                isSelected = isSelected,
+                                onClick = {
+                                    val newPlatform = when (platform) {
+                                        "All" -> null
+                                        "PC" -> "4"
+                                        "PlayStation" -> "187,18"
+                                        "Xbox" -> "186,1"
+                                        "Switch" -> "7"
+                                        "Android" -> "21"
+                                        else -> null
+                                    }
+                                    onFilterChange(filterOptions.copy(selectedPlatform = newPlatform))
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Release Year Range Selector
+                    Text("Release Era:", fontSize = 11.sp, color = TextMuted)
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        val eras = listOf("All Time", "2020+", "2015 - 2025", "2023", "2024", "Retro (<2010)")
+                        items(eras) { era ->
+                            val isSelected = when (era) {
+                                "All Time" -> filterOptions.selectedYearRange == null
+                                "2020+" -> filterOptions.selectedYearRange == "2020-01-01,2026-12-31"
+                                "2015 - 2025" -> filterOptions.selectedYearRange == "2015-01-01,2025-12-31"
+                                "2023" -> filterOptions.selectedYearRange == "2023-01-01,2023-12-31"
+                                "2024" -> filterOptions.selectedYearRange == "2024-01-01,2024-12-31"
+                                "Retro (<2010)" -> filterOptions.selectedYearRange == "1980-01-01,2009-12-31"
+                                else -> false
+                            }
+                            FilterChipItem(
+                                label = era,
+                                isSelected = isSelected,
+                                onClick = {
+                                    val newRange = when (era) {
+                                        "All Time" -> null
+                                        "2020+" -> "2020-01-01,2026-12-31"
+                                        "2015 - 2025" -> "2015-01-01,2025-12-31"
+                                        "2023" -> "2023-01-01,2023-12-31"
+                                        "2024" -> "2024-01-01,2024-12-31"
+                                        "Retro (<2010)" -> "1980-01-01,2009-12-31"
+                                        else -> null
+                                    }
+                                    onFilterChange(filterOptions.copy(selectedYearRange = newRange))
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Reset Filters Button
+                        if (hasActiveFilters(filterOptions)) {
+                            OutlinedButton(
+                                onClick = { onFilterChange(RawgFilterOptions()) },
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                            ) {
+                                Text("Clear Filters", fontSize = 11.sp, color = TextMuted)
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.width(1.dp))
+                        }
+
+                        // Sorting Dropdown Trigger
+                        Box {
+                            OutlinedButton(
+                                onClick = { isSortMenuOpen = true },
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder)
+                            ) {
+                                Icon(Icons.Default.Sort, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = getOrderingLabel(filterOptions.ordering),
+                                    fontSize = 11.sp,
+                                    color = TextPrimary
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = isSortMenuOpen,
+                                onDismissRequest = { isSortMenuOpen = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Highest Rating") },
+                                    onClick = {
+                                        onFilterChange(filterOptions.copy(ordering = "-rating"))
+                                        isSortMenuOpen = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Most Popular") },
+                                    onClick = {
+                                        onFilterChange(filterOptions.copy(ordering = "-added"))
+                                        isSortMenuOpen = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Release Date (Newest)") },
+                                    onClick = {
+                                        onFilterChange(filterOptions.copy(ordering = "-released"))
+                                        isSortMenuOpen = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Metacritic Score") },
+                                    onClick = {
+                                        onFilterChange(filterOptions.copy(ordering = "-metacritic"))
+                                        isSortMenuOpen = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
+
+            // Recent Search History Chips
+            if (searchHistory.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = null,
+                            tint = NeonCyan,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Recent Searches:",
+                            color = TextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Text(
+                        text = "Clear History",
+                        color = TextMuted,
+                        fontSize = 10.sp,
+                        modifier = Modifier.clickable { onClearSearchHistory() }
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    contentPadding = PaddingValues(end = 8.dp)
+                ) {
+                    items(searchHistory) { historyItem ->
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onSearchChange(historyItem) },
+                            color = DarkCard,
+                            border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f)),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = historyItem,
+                                    color = TextPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Remove",
+                                    tint = TextMuted,
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clickable { onRemoveSearchQuery(historyItem) }
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
             // Quick suggestion chips
             Row(
@@ -207,8 +520,7 @@ fun RawgSearchScreen(
                         Surface(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable { onSearchChange(suggestion) }
-                                .testTag("rawg_suggestion_${suggestion.replace(" ", "_")}"),
+                                .clickable { onSearchChange(suggestion) },
                             color = if (searchQuery.equals(suggestion, ignoreCase = true)) CyberPurple.copy(alpha = 0.4f) else DarkCard,
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
@@ -237,8 +549,7 @@ fun RawgSearchScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(32.dp)
-                            .testTag("rawg_loading_indicator"),
+                            .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
@@ -269,8 +580,7 @@ fun RawgSearchScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(28.dp)
-                            .testTag("rawg_error_state"),
+                            .padding(28.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
@@ -308,8 +618,7 @@ fun RawgSearchScreen(
                         Button(
                             onClick = onRetrySearch,
                             colors = ButtonDefaults.buttonColors(containerColor = CyberPurple),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.testTag("rawg_retry_button")
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
@@ -327,8 +636,7 @@ fun RawgSearchScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(32.dp)
-                            .testTag("rawg_empty_results"),
+                            .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
@@ -355,7 +663,7 @@ fun RawgSearchScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "No games matched \"$searchQuery\". Try checking the spelling or searching for a different game title.",
+                            text = "No games matched your query and active filters. Try adjusting your search criteria.",
                             color = TextMuted,
                             fontSize = 13.sp,
                             textAlign = TextAlign.Center,
@@ -370,8 +678,7 @@ fun RawgSearchScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(32.dp)
-                            .testTag("rawg_initial_prompt"),
+                            .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
@@ -393,14 +700,14 @@ fun RawgSearchScreen(
                         }
                         Spacer(modifier = Modifier.height(18.dp))
                         Text(
-                            text = "RAWG Live Video Games Search",
+                            text = "RAWG Game Discovery System",
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Type any game title above. Requests are sent automatically to RAWG's database of over 500,000 video games.",
+                            text = "Search over 500,000+ video games or filter by Genre, Platform, Release Era, and Rating.",
                             color = TextMuted,
                             fontSize = 13.sp,
                             textAlign = TextAlign.Center,
@@ -410,12 +717,10 @@ fun RawgSearchScreen(
                     }
                 }
 
-                // 5. Results List (LazyColumn with cover image, title, release date, rating)
+                // 5. Results List (LazyColumn with game cards)
                 else -> {
                     LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .testTag("rawg_results_list"),
+                        modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 90.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -428,7 +733,7 @@ fun RawgSearchScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Found ${searchResults.size} results for \"$searchQuery\"",
+                                    text = "Found ${searchResults.size} games",
                                     color = TextSecondary,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium
@@ -448,11 +753,14 @@ fun RawgSearchScreen(
                             key = { it.id },
                             contentType = { "rawg_game_card" }
                         ) { gameDto ->
+                            val onSelect = remember(gameDto.id, onSelectGame) { { onSelectGame(gameDto) } }
+                            val onAdd = remember(gameDto.id) { { quickAddGame = gameDto } }
                             RawgGameCardItem(
                                 game = gameDto,
                                 isInVault = isGameInVault(gameDto.name),
                                 vaultGame = getVaultGame(gameDto.name),
-                                onAddToVault = { quickAddGame = gameDto }
+                                onCardClick = onSelect,
+                                onAddToVault = onAdd
                             )
                         }
                     }
@@ -474,29 +782,86 @@ fun RawgSearchScreen(
     }
 }
 
-/**
- * Individual Game Item Card showing:
- * - Cover image (loaded using Coil)
- * - Title
- * - Release date
- * - Rating
- */
+@Composable
+private fun FilterChipItem(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { onClick() },
+        color = if (isSelected) CyberPurple else DarkCard,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isSelected) NeonCyan else DarkCardBorder
+        ),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Text(
+            text = label,
+            color = if (isSelected) Color.White else TextSecondary,
+            fontSize = 11.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+        )
+    }
+}
+
+private fun hasActiveFilters(options: RawgFilterOptions): Boolean {
+    return options.selectedGenre != null || options.selectedPlatform != null ||
+            options.selectedYearRange != null || options.minMetacritic != null ||
+            options.ordering != "-rating"
+}
+
+private fun getOrderingLabel(ordering: String): String {
+    return when (ordering) {
+        "-rating" -> "Highest Rating"
+        "-added" -> "Most Popular"
+        "-released" -> "Newest First"
+        "-metacritic" -> "Metacritic Score"
+        else -> "Sorted"
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RawgGameCardItem(
     game: RawgGameDto,
     isInVault: Boolean,
     vaultGame: Game?,
+    onCardClick: () -> Unit = {},
     onAddToVault: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val cardShape = remember { RoundedCornerShape(14.dp) }
+    val cardBorder = remember { BorderStroke(1.dp, DarkCardBorder) }
+
+    val imageRequest = remember(game.backgroundImage, context) {
+        if (!game.backgroundImage.isNullOrBlank()) {
+            ImageRequest.Builder(context)
+                .data(game.backgroundImage)
+                .crossfade(150)
+                .build()
+        } else null
+    }
+
+    val ratingText = remember(game.rating) {
+        val ratingValue = game.rating ?: 0.0
+        if (ratingValue > 0.0) String.format(Locale.US, "Rating %.1f/5.0", ratingValue) else "Rating N/A"
+    }
+
+    val onClick = remember(game.id, onCardClick) { onCardClick }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .testTag("rawg_game_item_${game.id}"),
-        shape = RoundedCornerShape(14.dp),
+            .clickable(onClick = onClick),
+        shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = DarkCard),
-        border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder)
+        border = cardBorder
     ) {
         Row(
             modifier = Modifier
@@ -504,7 +869,7 @@ fun RawgGameCardItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // 1. Cover Image loaded via Coil AsyncImage
+            // Cover Image loaded via Coil
             Box(
                 modifier = Modifier
                     .size(width = 90.dp, height = 120.dp)
@@ -512,13 +877,11 @@ fun RawgGameCardItem(
                     .background(DarkSurface),
                 contentAlignment = Alignment.Center
             ) {
-                if (!game.backgroundImage.isNullOrBlank()) {
+                if (imageRequest != null) {
                     AsyncImage(
-                        model = game.backgroundImage,
+                        model = imageRequest,
                         contentDescription = "${game.name} cover",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .testTag("rawg_cover_image_${game.id}"),
+                        modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
                 } else {
@@ -545,28 +908,22 @@ fun RawgGameCardItem(
 
             Spacer(modifier = Modifier.width(14.dp))
 
-            // 2. Info: Title, Release Date, Rating, Platforms, Add Button
+            // Info: Title, Release Date, Rating, Platforms, Add Button
             Column(
-                modifier = Modifier
-                    .weight(1f)
+                modifier = Modifier.weight(1f)
             ) {
-                // Title
                 Text(
                     text = game.name,
                     color = TextPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.testTag("rawg_game_title_${game.id}")
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Release Date
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "Release Date: ",
                         color = TextMuted,
@@ -577,32 +934,19 @@ fun RawgGameCardItem(
                         text = game.released?.ifBlank { "TBA" } ?: "TBA",
                         color = TextSecondary,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.testTag("rawg_game_release_${game.id}")
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Rating
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = "Rating",
-                        tint = AccentAmber,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     val ratingValue = game.rating ?: 0.0
-                    val ratingTop = game.ratingTop ?: 5
                     Text(
-                        text = if (ratingValue > 0.0) String.format("%.2f / %d", ratingValue, ratingTop) else "Not rated",
+                        text = ratingText,
                         color = if (ratingValue > 0.0) AccentAmber else TextMuted,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.testTag("rawg_game_rating_${game.id}")
+                        fontWeight = FontWeight.Bold
                     )
                     if ((game.ratingsCount ?: 0) > 0) {
                         Text(
@@ -623,10 +967,10 @@ fun RawgGameCardItem(
                                         else -> Color(0xFFE53935).copy(alpha = 0.2f)
                                     }
                                 )
-                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "MC ${game.metacritic}",
+                                text = "Metacritic ${game.metacritic}",
                                 color = when {
                                     game.metacritic >= 75 -> AccentEmerald
                                     game.metacritic >= 50 -> AccentAmber
@@ -639,7 +983,6 @@ fun RawgGameCardItem(
                     }
                 }
 
-                // Genres chips
                 if (!game.genres.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     FlowRow(
@@ -664,7 +1007,6 @@ fun RawgGameCardItem(
                     }
                 }
 
-                // Platforms chips
                 val platformNames = game.platforms?.mapNotNull { it.platform?.name }
                 if (!platformNames.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
@@ -693,7 +1035,6 @@ fun RawgGameCardItem(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Status in Vault or Add to Vault Button
                 if (isInVault) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -707,7 +1048,6 @@ fun RawgGameCardItem(
                                 }
                             )
                             .padding(horizontal = 10.dp, vertical = 5.dp)
-                            .testTag("rawg_game_in_vault_${game.id}")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Check,
@@ -734,9 +1074,7 @@ fun RawgGameCardItem(
                 } else {
                     OutlinedButton(
                         onClick = onAddToVault,
-                        modifier = Modifier
-                            .height(34.dp)
-                            .testTag("rawg_add_to_vault_btn_${game.id}"),
+                        modifier = Modifier.height(34.dp),
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, CyberPurple),
@@ -760,9 +1098,6 @@ fun RawgGameCardItem(
     }
 }
 
-/**
- * Dialog enabling user to pick their initial status when adding a RAWG game to Vault.
- */
 @Composable
 fun RawgQuickAddDialog(
     game: RawgGameDto,
@@ -771,7 +1106,7 @@ fun RawgQuickAddDialog(
 ) {
     var selectedStatus by remember { mutableStateOf(GameStatus.BACKLOG) }
 
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = DarkCard),
@@ -779,7 +1114,6 @@ fun RawgQuickAddDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
-                .testTag("rawg_quick_add_dialog")
         ) {
             Column(
                 modifier = Modifier
@@ -813,7 +1147,7 @@ fun RawgQuickAddDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                GameStatus.values().forEach { status ->
+                GameStatus.entries.forEach { status ->
                     val isSelected = selectedStatus == status
                     Row(
                         modifier = Modifier
@@ -827,8 +1161,7 @@ fun RawgQuickAddDialog(
                                 RoundedCornerShape(8.dp)
                             )
                             .clickable { selectedStatus = status }
-                            .padding(horizontal = 14.dp, vertical = 10.dp)
-                            .testTag("rawg_status_option_${status.name}"),
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -858,7 +1191,7 @@ fun RawgQuickAddDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMuted)
+                        colors = ButtonDefaults.buttonColors(contentColor = TextMuted)
                     ) {
                         Text("Cancel")
                     }
@@ -866,8 +1199,7 @@ fun RawgQuickAddDialog(
                     Button(
                         onClick = { onConfirmAdd(selectedStatus) },
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = CyberPurple),
-                        modifier = Modifier.testTag("rawg_confirm_add_button")
+                        colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
                     ) {
                         Text("Add Game", fontWeight = FontWeight.Bold)
                     }

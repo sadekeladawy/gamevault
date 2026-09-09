@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
+import com.example.data.local.SearchHistoryManager
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
 import com.example.data.model.UserProfile
@@ -17,6 +18,8 @@ import com.example.data.remote.rawg.RawgApiClient
 import com.example.data.remote.rawg.RawgGameDto
 import com.example.data.remote.rawg.RawgRepository
 import com.example.ui.components.AuthTab
+import com.example.ui.components.ComparableGame
+import com.example.ui.screens.RawgFilterOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -33,10 +36,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import java.util.Locale
 
 enum class NavDestination(val title: String, val iconName: String) {
     DASHBOARD("Dashboard", "home"),
     GAME_DATABASE("Search", "search"),
+    AI_CHAT("AI Assistant", "auto_awesome"),
     LIBRARY("My Games", "sports_esports"),
     COMPLETED("Completed", "check_circle"),
     PLAYING("Currently Playing", "play_circle"),
@@ -69,10 +74,12 @@ data class VaultStats(
     val completedThisYear: Int = 0,
     val currentlyPlayingCount: Int = 0,
     val backlogCount: Int = 0,
+    val wishlistCount: Int = 0,
     val droppedCount: Int = 0,
     val favoritesCount: Int = 0,
     val totalPlaytimeHours: Double = 0.0,
     val averageRating: Double = 0.0,
+    val averagePersonalRating: Double = 0.0,
     val completionStreakMonths: Int = 0,
     val yearlyCompletions: Map<Int, Int> = emptyMap(),
     val monthlyCompletions: Map<Int, Int> = emptyMap(), // 1 to 12
@@ -87,6 +94,15 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     private val repository: GameRepository
     private val firestoreRepository: FirestoreRepository = FirestoreRepository(application)
     private val authRepository: AuthRepository = AuthRepository(application, firestoreRepository)
+    private val searchHistoryManager: SearchHistoryManager = SearchHistoryManager(application)
+
+    val searchHistory: StateFlow<List<String>> = searchHistoryManager.history
+
+    private val _personalizedRecommendations = MutableStateFlow<List<RawgGameDto>>(emptyList())
+    val personalizedRecommendations: StateFlow<List<RawgGameDto>> = _personalizedRecommendations.asStateFlow()
+
+    private val _comparisonPair = MutableStateFlow<Pair<ComparableGame, ComparableGame>?>(null)
+    val comparisonPair: StateFlow<Pair<ComparableGame, ComparableGame>?> = _comparisonPair.asStateFlow()
 
     val currentUser: StateFlow<UserProfile?> = authRepository.currentUser
     val authState: StateFlow<AuthState> = authRepository.authState
@@ -146,10 +162,21 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     val stats: StateFlow<VaultStats>
 
     // --- RAWG Video Games API Integration ---
-    private val rawgRepository: RawgRepository = RawgRepository()
+    private var rawgRepository: RawgRepository = RawgRepository()
+
+    private val _activeGamingSession = MutableStateFlow<Pair<Game, Long>?>(null)
+    val activeGamingSession: StateFlow<Pair<Game, Long>?> = _activeGamingSession.asStateFlow()
+
+    val aiChatViewModel: AiChatViewModel = AiChatViewModel()
 
     private val _rawgSearchQuery = MutableStateFlow("")
     val rawgSearchQuery: StateFlow<String> = _rawgSearchQuery.asStateFlow()
+
+    private val _rawgFilterOptions = MutableStateFlow(RawgFilterOptions())
+    val rawgFilterOptions: StateFlow<RawgFilterOptions> = _rawgFilterOptions.asStateFlow()
+
+    private val _selectedRawgGameForDetails = MutableStateFlow<RawgGameDto?>(null)
+    val selectedRawgGameForDetails: StateFlow<RawgGameDto?> = _selectedRawgGameForDetails.asStateFlow()
 
     private val _rawgSearchResults = MutableStateFlow<List<RawgGameDto>>(emptyList())
     val rawgSearchResults: StateFlow<List<RawgGameDto>> = _rawgSearchResults.asStateFlow()
@@ -183,6 +210,7 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
 
     init {
         val db = AppDatabase.getDatabase(application)
+        rawgRepository = RawgRepository(rawgCacheDao = db.rawgCacheDao())
         repository = GameRepository(db.gameDao())
 
         // Setup allGames state stream from Room
@@ -480,6 +508,41 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
      */
     fun navigateTo(destination: NavDestination) {
         _currentDestination.value = destination
+    }
+
+    fun startGamingSession(game: Game) {
+        _activeGamingSession.value = Pair(game, System.currentTimeMillis())
+        viewModelScope.launch {
+            _snackbarMessage.emit("Started gaming session for \"${game.title}\"")
+        }
+    }
+
+    fun stopGamingSession() {
+        val session = _activeGamingSession.value ?: return
+        val game = session.first
+        val startTime = session.second
+        val elapsedMs = System.currentTimeMillis() - startTime
+        val addedHours = (elapsedMs / (1000.0 * 3600.0)).coerceAtLeast(0.01)
+        val roundedAdded = (Math.round(addedHours * 100.0) / 100.0)
+        val newPlaytime = (Math.round((game.playtimeHours + roundedAdded) * 100.0) / 100.0)
+
+        val updatedGame = game.copy(
+            playtimeHours = newPlaytime,
+            status = if (game.status == GameStatus.BACKLOG || game.status == GameStatus.WISHLIST) GameStatus.CURRENTLY_PLAYING else game.status
+        )
+
+        val user = currentUser.value
+        viewModelScope.launch {
+            repository.updateGame(updatedGame)
+            if (user != null) {
+                firestoreRepository.saveUserGame(user.uid, updatedGame)
+            }
+            if (_selectedGameForDetails.value?.id == game.id) {
+                _selectedGameForDetails.value = updatedGame
+            }
+            _activeGamingSession.value = null
+            _snackbarMessage.emit("Logged session: +${String.format(Locale.US, "%.2f", roundedAdded)} hours to \"${game.title}\"")
+        }
     }
 
     fun setSearchQuery(query: String) {
@@ -928,7 +991,94 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         return allGames.value.firstOrNull { it.title.equals(title, ignoreCase = true) }
     }
 
+    fun openRawgGameDetails(rawgGame: RawgGameDto) {
+        _selectedRawgGameForDetails.value = rawgGame
+    }
+
+    fun closeRawgGameDetails() {
+        _selectedRawgGameForDetails.value = null
+    }
+
+    fun openComparison(game1: ComparableGame, game2: ComparableGame) {
+        _comparisonPair.value = Pair(game1, game2)
+    }
+
+    fun closeComparison() {
+        _comparisonPair.value = null
+    }
+
+    fun addSearchHistoryQuery(query: String) {
+        searchHistoryManager.addSearchQuery(query)
+    }
+
+    fun removeSearchHistoryQuery(query: String) {
+        searchHistoryManager.removeSearchQuery(query)
+    }
+
+    fun clearSearchHistory() {
+        searchHistoryManager.clearSearchHistory()
+    }
+
+    fun addRawgGameToVault(rawgGame: RawgGameDto, initialStatus: GameStatus = GameStatus.BACKLOG) {
+        val user = currentUser.value
+        val uid = user?.uid ?: ""
+
+        // Check if game is already in Vault to prevent duplicates
+        val existingGame = allGames.value.firstOrNull { it.title.equals(rawgGame.name, ignoreCase = true) }
+        if (existingGame != null) {
+            viewModelScope.launch {
+                closeRawgGameDetails()
+                closeGameDetails()
+                _libraryFilters.value = _libraryFilters.value.copy(searchQuery = existingGame.title)
+                _currentDestination.value = NavDestination.LIBRARY
+                _snackbarMessage.emit("\"${rawgGame.name}\" is already in your Vault!")
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            val newGame = Game(
+                title = rawgGame.name,
+                coverUrl = rawgGame.backgroundImage ?: "",
+                platform = rawgGame.platforms?.firstOrNull()?.platform?.name ?: "PC",
+                genre = rawgGame.genres?.firstOrNull()?.name ?: "Action",
+                releaseYear = rawgGame.released?.take(4)?.toIntOrNull() ?: 2024,
+                status = initialStatus,
+                playtimeHours = (rawgGame.playtime ?: 0).toDouble(),
+                rating = 0, // Personal rating unrated by default
+                rawgRating = rawgGame.rating ?: 0.0,
+                metacriticScore = rawgGame.metacritic,
+                developer = rawgGame.developers?.firstOrNull()?.name ?: "",
+                publisher = rawgGame.publishers?.firstOrNull()?.name ?: "",
+                notes = rawgGame.descriptionRaw ?: rawgGame.description ?: "Added from RAWG / GameVault AI",
+                userId = uid
+            )
+
+            val insertedId = repository.insertGame(newGame)
+
+            if (uid.isNotBlank()) {
+                val gameToSync = newGame.copy(id = insertedId, userId = uid)
+                firestoreRepository.saveUserGame(uid, gameToSync)
+            }
+
+            closeRawgGameDetails()
+            closeGameDetails()
+            _libraryFilters.value = LibraryFilters() // Reset filters so newly added game is visible at top
+            _currentDestination.value = NavDestination.LIBRARY
+            _snackbarMessage.emit("Added \"${rawgGame.name}\" to your Vault!")
+        }
+    }
+
     // --- RAWG Search Methods ---
+
+    fun setRawgFilterOptions(options: RawgFilterOptions) {
+        _rawgFilterOptions.value = options
+        rawgSearchJob?.cancel()
+        rawgSearchJob = viewModelScope.launch {
+            delay(300)
+            executeRawgSearch(_rawgSearchQuery.value)
+        }
+    }
 
     /**
      * Updates the search query and sends request automatically with debounce.
@@ -938,7 +1088,7 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         rawgSearchJob?.cancel()
 
         val trimmed = query.trim()
-        if (trimmed.isEmpty()) {
+        if (trimmed.isEmpty() && !hasActiveFilters(_rawgFilterOptions.value)) {
             _rawgSearchResults.value = emptyList()
             _rawgErrorMessage.value = null
             _isRawgLoading.value = false
@@ -953,12 +1103,17 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    private fun hasActiveFilters(options: RawgFilterOptions): Boolean {
+        return options.selectedGenre != null || options.selectedPlatform != null ||
+                options.selectedYearRange != null || options.minMetacritic != null ||
+                options.ordering != "-rating"
+    }
+
     /**
      * Executes immediate search for the given query.
      */
     fun searchRawg(query: String? = null) {
         val target = (query ?: _rawgSearchQuery.value).trim()
-        if (target.isEmpty()) return
         rawgSearchJob?.cancel()
         viewModelScope.launch {
             executeRawgSearch(target)
@@ -974,53 +1129,22 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         _rawgErrorMessage.value = null
         _hasSearchedRawg.value = true
 
-        val result = repository.searchRawgGames(query)
+        val filters = _rawgFilterOptions.value
+        val result = repository.searchRawgGamesWithFilters(
+            query = query,
+            genres = filters.selectedGenre,
+            platforms = filters.selectedPlatform,
+            dates = filters.selectedYearRange,
+            metacritic = filters.minMetacritic?.let { "$it,100" },
+            ordering = filters.ordering
+        )
         _isRawgLoading.value = false
         result.onSuccess { games ->
             _rawgSearchResults.value = games
             _rawgErrorMessage.value = null
-        }.onFailure { error ->
+        }.onFailure { err ->
             _rawgSearchResults.value = emptyList()
-            _rawgErrorMessage.value = error.localizedMessage ?: "Failed to load games from RAWG"
-        }
-    }
-
-    /**
-     * Adds a game returned from RAWG API search into the user's local Room database and Cloud Firestore under users/{uid}/games.
-     */
-    fun addRawgGameToVault(rawgGame: RawgGameDto, status: GameStatus = GameStatus.BACKLOG, rating: Int = 0) {
-        val user = currentUser.value
-        val uid = user?.uid ?: ""
-        viewModelScope.launch {
-            val exists = allGames.value.any { it.title.equals(rawgGame.name, ignoreCase = true) }
-            if (exists) {
-                _snackbarMessage.emit("\"${rawgGame.name}\" is already in your Vault!")
-                return@launch
-            }
-
-            val firstPlatform = rawgGame.platforms?.firstOrNull()?.platform?.name ?: "PC"
-            val firstGenre = rawgGame.genres?.firstOrNull()?.name ?: "Action"
-            val year = rawgGame.released?.take(4)?.toIntOrNull() ?: 2024
-            val defaultRating = rawgGame.rating?.let { (it * 2).toInt().coerceIn(1, 10) } ?: 0
-
-            val newGame = Game(
-                title = rawgGame.name,
-                coverUrl = rawgGame.backgroundImage ?: "",
-                platform = firstPlatform,
-                genre = firstGenre,
-                releaseYear = year,
-                status = status,
-                playtimeHours = rawgGame.playtime?.toDouble() ?: 0.0,
-                rating = if (rating > 0) rating else defaultRating,
-                notes = "Added from RAWG Video Games Database",
-                userId = uid
-            )
-            val newId = repository.insertGame(newGame)
-            val savedGame = newGame.copy(id = newId)
-            if (uid.isNotBlank()) {
-                firestoreRepository.saveUserGame(uid, savedGame)
-            }
-            _snackbarMessage.emit("Added \"${rawgGame.name}\" to your Vault (${status.displayName})!")
+            _rawgErrorMessage.value = err.localizedMessage ?: "Failed to query RAWG API."
         }
     }
 }

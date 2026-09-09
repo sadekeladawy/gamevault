@@ -1,7 +1,7 @@
 package com.example.ui.components
 
+import android.graphics.Paint
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +19,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -28,7 +27,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,7 +37,6 @@ import com.example.ui.theme.DarkCardBorder
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
 
 data class BarChartItem(
     val label: String,
@@ -53,7 +51,8 @@ fun CompletionBarChart(
     modifier: Modifier = Modifier,
     accentGradient: List<Color> = listOf(CyberPurple, NeonCyan)
 ) {
-    val maxValue = (items.maxOfOrNull { it.value } ?: 1).coerceAtLeast(1)
+    val maxValue = remember(items) { (items.maxOfOrNull { it.value } ?: 1).coerceAtLeast(1) }
+    val totalInChart = remember(items) { items.sumOf { it.value } }
 
     Card(
         modifier = modifier
@@ -86,7 +85,6 @@ fun CompletionBarChart(
                     )
                 }
 
-                val totalInChart = items.sumOf { it.value }
                 Text(
                     text = "$totalInChart Completed",
                     color = NeonCyan,
@@ -98,25 +96,19 @@ fun CompletionBarChart(
             Spacer(modifier = Modifier.height(20.dp))
 
             val density = LocalDensity.current
-            val linePaint = remember {
-                android.graphics.Paint().apply {
-                    color = android.graphics.Color.argb(25, 255, 255, 255)
-                    strokeWidth = 1f
-                }
-            }
             val textPaint = remember(density) {
-                android.graphics.Paint().apply {
+                Paint().apply {
                     color = android.graphics.Color.argb(180, 148, 163, 184)
                     textSize = with(density) { 10.sp.toPx() }
-                    textAlign = android.graphics.Paint.Align.CENTER
+                    textAlign = Paint.Align.CENTER
                     isAntiAlias = true
                 }
             }
             val valuePaint = remember(density) {
-                android.graphics.Paint().apply {
+                Paint().apply {
                     color = android.graphics.Color.WHITE
                     textSize = with(density) { 11.sp.toPx() }
-                    textAlign = android.graphics.Paint.Align.CENTER
+                    textAlign = Paint.Align.CENTER
                     isFakeBoldText = true
                     isAntiAlias = true
                 }

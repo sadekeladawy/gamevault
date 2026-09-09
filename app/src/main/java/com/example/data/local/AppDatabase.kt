@@ -8,10 +8,11 @@ import androidx.room.TypeConverters
 import com.example.data.model.Converters
 import com.example.data.model.Game
 
-@Database(entities = [Game::class], version = 2, exportSchema = false)
+@Database(entities = [Game::class, RawgCacheEntity::class], version = 4, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gameDao(): GameDao
+    abstract fun rawgCacheDao(): RawgCacheDao
 
     companion object {
         @Volatile

@@ -5,9 +5,10 @@ import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 
 enum class GameStatus(val displayName: String) {
-    COMPLETED("Completed"),
-    CURRENTLY_PLAYING("Playing"),
+    WISHLIST("Wishlist"),
     BACKLOG("Backlog"),
+    CURRENTLY_PLAYING("Playing"),
+    COMPLETED("Completed"),
     DROPPED("Dropped");
 
     companion object {
@@ -30,10 +31,15 @@ data class Game(
     val status: GameStatus = GameStatus.BACKLOG,
     val completionDate: String? = null,
     val playtimeHours: Double = 0.0,
-    val rating: Int = 0, // 1 - 10
+    val rating: Int = 0, // Personal Rating (1 - 10)
+    val rawgRating: Double = 0.0, // RAWG Public Rating (0.0 - 5.0)
+    val metacriticScore: Int? = null,
+    val developer: String = "",
+    val publisher: String = "",
     val notes: String = "",
     val isFavorite: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
     val userId: String = ""
 )
 

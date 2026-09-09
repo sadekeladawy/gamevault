@@ -19,8 +19,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Card
@@ -115,11 +115,11 @@ fun StatisticsScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     StatCard(
-                        title = "Average Rating",
-                        value = if (stats.averageRating > 0) String.format("%.1f / 10", stats.averageRating) else "—",
-                        icon = Icons.Filled.Star,
+                        title = "Personal Rating",
+                        value = if (stats.averagePersonalRating > 0) String.format("%.1f / 10", stats.averagePersonalRating) else "—",
+                        icon = Icons.Filled.BarChart,
                         accentColor = AccentAmber,
-                        subtitle = "critics & taste",
+                        subtitle = "my score average",
                         modifier = Modifier.weight(1f)
                     )
                     StatCard(
@@ -382,21 +382,12 @@ fun StatisticsScreen(
                                     }
                                 }
 
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Star,
-                                        contentDescription = null,
-                                        tint = AccentAmber,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "${game.rating}/10",
-                                        color = TextPrimary,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp
-                                    )
-                                }
+                                Text(
+                                    text = "My Rating: ${game.rating}/10",
+                                    color = AccentAmber,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
                             }
                         }
                     }

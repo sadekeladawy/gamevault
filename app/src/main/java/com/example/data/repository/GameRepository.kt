@@ -8,6 +8,8 @@ import com.example.data.model.GameStatus
 import com.example.data.remote.rawg.RawgApiClient
 import com.example.data.remote.rawg.RawgApiService
 import com.example.data.remote.rawg.RawgGameDto
+import com.example.data.remote.rawg.RawgMovieDto
+import com.example.data.remote.rawg.RawgScreenshotDto
 import com.example.data.sample.SampleGames
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -49,19 +51,40 @@ class GameRepository(
     // --- RAWG Video Games API (Real Network Requests) ---
 
     /**
-     * Searches RAWG Video Games Database via live REST network request.
+     * Searches RAWG Video Games Database via live REST network request with advanced filters.
      */
-    suspend fun searchRawgGames(query: String, pageSize: Int = 25): Result<List<RawgGameDto>> = withContext(Dispatchers.IO) {
-        val trimmed = query.trim()
-        if (trimmed.isEmpty()) {
-            return@withContext Result.success(emptyList())
-        }
+    suspend fun searchRawgGames(query: String, pageSize: Int = 25): Result<List<RawgGameDto>> =
+        searchRawgGamesWithFilters(query = query, pageSize = pageSize)
+
+    suspend fun searchRawgGamesWithFilters(
+        query: String? = null,
+        genres: String? = null,
+        platforms: String? = null,
+        developers: String? = null,
+        publishers: String? = null,
+        tags: String? = null,
+        dates: String? = null,
+        metacritic: String? = null,
+        ordering: String? = "-rating",
+        page: Int = 1,
+        pageSize: Int = 25
+    ): Result<List<RawgGameDto>> = withContext(Dispatchers.IO) {
+        val trimmedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
 
         try {
-            Log.d(TAG, "Executing RAWG API search for \"$trimmed\"")
+            Log.d(TAG, "Executing RAWG API search with filters: query=\"$trimmedQuery\", genres=$genres, platforms=$platforms, ordering=$ordering")
             val response = rawgApiService.searchGames(
                 apiKey = rawgApiKey,
-                search = trimmed,
+                search = trimmedQuery,
+                genres = genres?.takeIf { it.isNotBlank() },
+                platforms = platforms?.takeIf { it.isNotBlank() },
+                developers = developers?.takeIf { it.isNotBlank() },
+                publishers = publishers?.takeIf { it.isNotBlank() },
+                tags = tags?.takeIf { it.isNotBlank() },
+                dates = dates?.takeIf { it.isNotBlank() },
+                metacritic = metacritic?.takeIf { it.isNotBlank() },
+                ordering = ordering,
+                page = page,
                 pageSize = pageSize
             )
             val results = response.results ?: emptyList()
@@ -82,6 +105,39 @@ class GameRepository(
         } catch (e: Exception) {
             Log.e(TAG, "Error during RAWG search: ${e.message}", e)
             Result.failure(Exception(e.localizedMessage ?: "Failed to search RAWG database.", e))
+        }
+    }
+
+    suspend fun getGameDetails(gameIdOrSlug: String): Result<RawgGameDto> = withContext(Dispatchers.IO) {
+        if (gameIdOrSlug.isBlank()) return@withContext Result.failure(IllegalArgumentException("Game ID or slug cannot be empty"))
+        try {
+            val details = rawgApiService.getGameDetails(gameIdOrSlug, rawgApiKey)
+            Result.success(details)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching details for $gameIdOrSlug: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getGameScreenshots(gameIdOrSlug: String): Result<List<RawgScreenshotDto>> = withContext(Dispatchers.IO) {
+        if (gameIdOrSlug.isBlank()) return@withContext Result.success(emptyList())
+        try {
+            val response = rawgApiService.getGameScreenshots(gameIdOrSlug, rawgApiKey)
+            Result.success(response.results ?: emptyList())
+        } catch (e: Exception) {
+            Log.w(TAG, "Error fetching screenshots for $gameIdOrSlug: ${e.message}")
+            Result.success(emptyList())
+        }
+    }
+
+    suspend fun getGameTrailers(gameIdOrSlug: String): Result<List<RawgMovieDto>> = withContext(Dispatchers.IO) {
+        if (gameIdOrSlug.isBlank()) return@withContext Result.success(emptyList())
+        try {
+            val response = rawgApiService.getGameTrailers(gameIdOrSlug, rawgApiKey)
+            Result.success(response.results ?: emptyList())
+        } catch (e: Exception) {
+            Log.w(TAG, "Error fetching trailers for $gameIdOrSlug: ${e.message}")
+            Result.success(emptyList())
         }
     }
 

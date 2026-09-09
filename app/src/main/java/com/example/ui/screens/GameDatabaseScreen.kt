@@ -9,7 +9,7 @@ import com.example.data.remote.rawg.RawgGameDto
 
 /**
  * Game Database Screen powered 100% by the RAWG Video Games Database API.
- * Replaces the legacy Firestore games catalog with live global discovery.
+ * Provides live global discovery, search, and advanced filtering.
  */
 @Composable
 fun GameDatabaseScreen(
@@ -18,8 +18,14 @@ fun GameDatabaseScreen(
     isLoading: Boolean,
     errorMessage: String?,
     hasSearched: Boolean,
+    filterOptions: RawgFilterOptions = RawgFilterOptions(),
+    searchHistory: List<String> = emptyList(),
     onSearchChange: (String) -> Unit,
+    onFilterChange: (RawgFilterOptions) -> Unit = {},
+    onClearSearchHistory: () -> Unit = {},
+    onRemoveSearchQuery: (String) -> Unit = {},
     onRetrySearch: () -> Unit,
+    onSelectGame: (RawgGameDto) -> Unit = {},
     onAddGameToVault: (RawgGameDto, GameStatus) -> Unit,
     isGameInVault: (String) -> Boolean,
     getVaultGame: (String) -> Game?,
@@ -31,8 +37,14 @@ fun GameDatabaseScreen(
         isLoading = isLoading,
         errorMessage = errorMessage,
         hasSearched = hasSearched,
+        filterOptions = filterOptions,
+        searchHistory = searchHistory,
         onSearchChange = onSearchChange,
+        onFilterChange = onFilterChange,
+        onClearSearchHistory = onClearSearchHistory,
+        onRemoveSearchQuery = onRemoveSearchQuery,
         onRetrySearch = onRetrySearch,
+        onSelectGame = onSelectGame,
         onAddGameToVault = onAddGameToVault,
         isGameInVault = isGameInVault,
         getVaultGame = getVaultGame,

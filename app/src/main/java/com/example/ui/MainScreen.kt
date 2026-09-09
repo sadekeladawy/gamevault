@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -26,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
@@ -45,6 +47,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -93,9 +96,11 @@ import com.example.ui.components.AddEditGameDialog
 import com.example.ui.components.AuthDialog
 import com.example.ui.components.ConfirmationDialog
 import com.example.ui.components.ExportDialog
+import com.example.ui.components.GameComparisonDialog
 import com.example.ui.components.GameDetailDialog
 import com.example.ui.components.ImportDialog
 import com.example.ui.components.UserProfileDialog
+import com.example.ui.screens.AiChatScreen
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.GameDatabaseScreen
@@ -121,6 +126,7 @@ fun getDestinationIcon(dest: NavDestination): ImageVector {
     return when (dest) {
         NavDestination.DASHBOARD -> Icons.Filled.Home
         NavDestination.GAME_DATABASE -> Icons.Outlined.Search
+        NavDestination.AI_CHAT -> Icons.Filled.AutoAwesome
         NavDestination.LIBRARY -> Icons.Filled.SportsEsports
         NavDestination.COMPLETED -> Icons.Filled.CheckCircle
         NavDestination.PLAYING -> Icons.Filled.PlayCircle
@@ -142,6 +148,8 @@ fun MainScreen(viewModel: GameVaultViewModel) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
 
     val selectedGameForDetails by viewModel.selectedGameForDetails.collectAsStateWithLifecycle()
+    val selectedRawgGameForDetails by viewModel.selectedRawgGameForDetails.collectAsStateWithLifecycle()
+    val comparisonPair by viewModel.comparisonPair.collectAsStateWithLifecycle()
     val isAddEditOpen by viewModel.isAddEditOpen.collectAsStateWithLifecycle()
     val gameToEdit by viewModel.gameToEdit.collectAsStateWithLifecycle()
     val gameToDelete by viewModel.gameToDelete.collectAsStateWithLifecycle()
@@ -157,6 +165,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
     val isProfileModalOpen by viewModel.isProfileModalOpen.collectAsStateWithLifecycle()
     val isCloudSyncing by viewModel.isCloudSyncing.collectAsStateWithLifecycle()
     val lastCloudSyncTimestamp by viewModel.lastCloudSyncTimestamp.collectAsStateWithLifecycle()
+    val activeGamingSession by viewModel.activeGamingSession.collectAsStateWithLifecycle()
 
     var showResetSampleConfirm by remember { mutableStateOf(false) }
     var showClearAllConfirm by remember { mutableStateOf(false) }
@@ -715,59 +724,77 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                         )
                     },
                     bottomBar = {
-                        NavigationBar(
-                            containerColor = DarkSurface,
+                        Surface(
+                            color = DarkBg,
                             tonalElevation = 0.dp,
-                            modifier = Modifier.border(1.dp, DarkCardBorder, RoundedCornerShape(0.dp))
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            val bottomNavItems = listOf(
-                                NavDestination.DASHBOARD,
-                                NavDestination.GAME_DATABASE,
-                                NavDestination.LIBRARY,
-                                NavDestination.COMPLETED,
-                                NavDestination.AUTH
-                            )
-
-                            bottomNavItems.forEach { dest ->
-                                val isSelected = currentDestination == dest
-                                NavigationBarItem(
-                                    icon = {
-                                        Icon(
-                                            imageVector = getDestinationIcon(dest),
-                                            contentDescription = dest.title,
-                                            tint = if (isSelected) NeonCyan else TextMuted
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = dest.title,
-                                            fontSize = 10.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    selected = isSelected,
-                                    onClick = { viewModel.navigateTo(dest) },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        indicatorColor = CyberPurple.copy(alpha = 0.25f),
-                                        selectedTextColor = TextPrimary,
-                                        unselectedTextColor = TextMuted
-                                    )
+                            Column {
+                                HorizontalDivider(
+                                    color = DarkCardBorder.copy(alpha = 0.5f),
+                                    thickness = 0.5.dp
                                 )
+                                NavigationBar(
+                                    containerColor = Color.Transparent,
+                                    tonalElevation = 0.dp,
+                                    windowInsets = WindowInsets.navigationBars,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    val bottomNavItems = listOf(
+                                        NavDestination.DASHBOARD,
+                                        NavDestination.GAME_DATABASE,
+                                        NavDestination.AI_CHAT,
+                                        NavDestination.LIBRARY,
+                                        NavDestination.AUTH
+                                    )
+
+                                    bottomNavItems.forEach { dest ->
+                                        val isSelected = currentDestination == dest
+                                        NavigationBarItem(
+                                            icon = {
+                                                Icon(
+                                                    imageVector = getDestinationIcon(dest),
+                                                    contentDescription = dest.title,
+                                                    tint = if (isSelected) NeonCyan else TextMuted
+                                                )
+                                            },
+                                            label = {
+                                                Text(
+                                                    text = dest.title,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (isSelected) NeonCyan else TextMuted
+                                                )
+                                            },
+                                            selected = isSelected,
+                                            onClick = { viewModel.navigateTo(dest) },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                indicatorColor = CyberPurple.copy(alpha = 0.2f),
+                                                selectedIconColor = NeonCyan,
+                                                unselectedIconColor = TextMuted,
+                                                selectedTextColor = NeonCyan,
+                                                unselectedTextColor = TextMuted
+                                            )
+                                        )
+                                    }
+                                }
                             }
                         }
                     },
                     floatingActionButton = {
-                        FloatingActionButton(
-                            onClick = { viewModel.openAddGame() },
-                            containerColor = CyberPurple,
-                            contentColor = Color.White,
-                            shape = CircleShape,
-                            modifier = Modifier.testTag("main_fab_add_game")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Add Game"
-                            )
+                        if (currentDestination != NavDestination.AI_CHAT) {
+                            FloatingActionButton(
+                                onClick = { viewModel.openAddGame() },
+                                containerColor = CyberPurple,
+                                contentColor = Color.White,
+                                shape = CircleShape,
+                                modifier = Modifier.testTag("main_fab_add_game")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add Game"
+                                )
+                            }
                         }
                     },
                     snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -839,11 +866,33 @@ fun MainScreen(viewModel: GameVaultViewModel) {
         selectedGameForDetails?.let { game ->
             GameDetailDialog(
                 game = game,
+                activeSession = activeGamingSession,
+                onStartSession = { viewModel.startGamingSession(it) },
+                onStopSession = { viewModel.stopGamingSession() },
                 onDismiss = { viewModel.closeGameDetails() },
                 onEdit = { viewModel.openEditGame(game) },
                 onDelete = { viewModel.confirmDeleteGame(game) },
                 onToggleFavorite = { viewModel.toggleFavorite(game) },
                 onStatusChange = { newStatus -> viewModel.updateGameStatus(game, newStatus) }
+            )
+        }
+
+        selectedRawgGameForDetails?.let { rawgDto ->
+            GameDetailDialog(
+                rawgGameDto = rawgDto,
+                onDismiss = { viewModel.closeRawgGameDetails() },
+                onAddToVault = { dto, status -> viewModel.addRawgGameToVault(dto, status) },
+                onSelectSimilarGame = { viewModel.openRawgGameDetails(it) },
+                isInVault = viewModel.isGameInVault(rawgDto.name),
+                vaultGameStatus = viewModel.getVaultGame(rawgDto.name)?.status
+            )
+        }
+
+        comparisonPair?.let { (g1, g2) ->
+            GameComparisonDialog(
+                game1 = g1,
+                game2 = g2,
+                onDismiss = { viewModel.closeComparison() }
             )
         }
 
@@ -968,9 +1017,11 @@ fun ScreenRouter(
     when (destination) {
         NavDestination.DASHBOARD -> {
             val popularGames by viewModel.popularRawgGames.collectAsStateWithLifecycle()
+            val personalizedRecs by viewModel.personalizedRecommendations.collectAsStateWithLifecycle()
             DashboardScreen(
                 stats = stats,
                 popularGames = popularGames,
+                personalizedRecommendations = personalizedRecs,
                 onNavigate = { viewModel.navigateTo(it) },
                 onGameClick = { viewModel.openGameDetails(it) },
                 onToggleFavorite = { viewModel.toggleFavorite(it) },
@@ -979,6 +1030,7 @@ fun ScreenRouter(
                     viewModel.setRawgSearchQuery(query)
                     viewModel.navigateTo(NavDestination.GAME_DATABASE)
                 },
+                onSelectRawgGame = { viewModel.openRawgGameDetails(it) },
                 onAddRawgGameToVault = { game, status ->
                     viewModel.addRawgGameToVault(game, status)
                 },
@@ -992,6 +1044,8 @@ fun ScreenRouter(
             val isRawgLoading by viewModel.isRawgLoading.collectAsStateWithLifecycle()
             val rawgErrorMessage by viewModel.rawgErrorMessage.collectAsStateWithLifecycle()
             val hasSearchedRawg by viewModel.hasSearchedRawg.collectAsStateWithLifecycle()
+            val rawgFilterOptions by viewModel.rawgFilterOptions.collectAsStateWithLifecycle()
+            val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
 
             GameDatabaseScreen(
                 searchQuery = rawgSearchQuery,
@@ -999,11 +1053,29 @@ fun ScreenRouter(
                 isLoading = isRawgLoading,
                 errorMessage = rawgErrorMessage,
                 hasSearched = hasSearchedRawg,
-                onSearchChange = { viewModel.setRawgSearchQuery(it) },
+                filterOptions = rawgFilterOptions,
+                searchHistory = searchHistory,
+                onSearchChange = { query ->
+                    viewModel.setRawgSearchQuery(query)
+                    if (query.isNotBlank()) viewModel.addSearchHistoryQuery(query)
+                },
+                onFilterChange = { viewModel.setRawgFilterOptions(it) },
+                onClearSearchHistory = { viewModel.clearSearchHistory() },
+                onRemoveSearchQuery = { viewModel.removeSearchHistoryQuery(it) },
                 onRetrySearch = { viewModel.retryRawgSearch() },
+                onSelectGame = { viewModel.openRawgGameDetails(it) },
                 onAddGameToVault = { game, status -> viewModel.addRawgGameToVault(game, status) },
                 isGameInVault = { viewModel.isGameInVault(it) },
                 getVaultGame = { viewModel.getVaultGame(it) }
+            )
+        }
+
+        NavDestination.AI_CHAT -> {
+            AiChatScreen(
+                viewModel = viewModel.aiChatViewModel,
+                userBacklog = allGames,
+                onSelectRawgGame = { viewModel.openRawgGameDetails(it) },
+                onAddRawgGameToVault = { viewModel.addRawgGameToVault(it) }
             )
         }
 

@@ -384,10 +384,12 @@ fun LibraryScreen(
                 key = { it.id },
                 contentType = { "game_card" }
             ) { game ->
+                val onSelect = remember(game.id, onGameClick) { { onGameClick(game) } }
+                val onFav = remember(game.id, onToggleFavorite) { { onToggleFavorite(game) } }
                 GameCard(
                     game = game,
-                    onClick = { onGameClick(game) },
-                    onToggleFavorite = { onToggleFavorite(game) }
+                    onClick = onSelect,
+                    onToggleFavorite = onFav
                 )
             }
         }
