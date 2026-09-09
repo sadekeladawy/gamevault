@@ -64,12 +64,11 @@ import com.example.data.model.UserProfile
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.AccentRose
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
 import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -138,7 +137,7 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .border(
                             1.dp,
-                            Brush.horizontalGradient(listOf(CyberPurple.copy(alpha = 0.6f), NeonCyan.copy(alpha = 0.6f))),
+                            PrimaryRed.copy(alpha = 0.35f),
                             RoundedCornerShape(16.dp)
                         ),
                     colors = CardDefaults.cardColors(containerColor = DarkCard),
@@ -159,7 +158,7 @@ fun SettingsScreen(
                                 modifier = Modifier
                                     .size(52.dp)
                                     .clip(CircleShape)
-                                    .border(2.dp, NeonCyan, CircleShape)
+                                    .border(2.dp, PrimaryRed, CircleShape)
                                     .background(DarkBg),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -174,7 +173,7 @@ fun SettingsScreen(
                                     val initial = currentUser.fullName.firstOrNull()?.uppercase() ?: "G"
                                     Text(
                                         text = initial,
-                                        color = NeonCyan,
+                                        color = PrimaryRed,
                                         fontSize = 22.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -207,7 +206,7 @@ fun SettingsScreen(
                                 if (!currentUser.gamerTag.isNullOrBlank()) {
                                     Text(
                                         text = "@${currentUser.gamerTag}",
-                                        color = NeonCyan,
+                                        color = PrimaryRed,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -227,7 +226,7 @@ fun SettingsScreen(
                                 Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = "Edit Profile",
-                                    tint = NeonCyan,
+                                    tint = PrimaryRed,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -276,7 +275,7 @@ fun SettingsScreen(
                                 if (isCloudSyncing) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(16.dp),
-                                        color = NeonCyan,
+                                        color = PrimaryRed,
                                         strokeWidth = 2.dp
                                     )
                                 }
@@ -293,7 +292,7 @@ fun SettingsScreen(
                                 enabled = !isCloudSyncing,
                                 modifier = Modifier.weight(1f).height(38.dp).testTag("settings_sync_cloud"),
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                             ) {
                                 Icon(imageVector = Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(15.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -305,8 +304,8 @@ fun SettingsScreen(
                                 enabled = !isCloudSyncing,
                                 modifier = Modifier.weight(1f).height(38.dp).testTag("settings_restore_cloud"),
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan),
-                                border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.horizontalGradient(listOf(NeonCyan, CyberPurple)))
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryRed),
+                                border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.horizontalGradient(listOf(PrimaryRed, PrimaryRed)))
                             ) {
                                 Icon(imageVector = Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(15.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -331,7 +330,7 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .border(
                             1.dp,
-                            Brush.horizontalGradient(listOf(CyberPurple.copy(alpha = 0.5f), NeonCyan.copy(alpha = 0.5f))),
+                            PrimaryRed.copy(alpha = 0.35f),
                             RoundedCornerShape(16.dp)
                         ),
                     colors = CardDefaults.cardColors(containerColor = DarkCard),
@@ -351,13 +350,13 @@ fun SettingsScreen(
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(CyberPurple.copy(alpha = 0.2f)),
+                                    .background(PrimaryRed.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.AccountCircle,
                                     contentDescription = null,
-                                    tint = NeonCyan,
+                                    tint = PrimaryRed,
                                     modifier = Modifier.size(26.dp)
                                 )
                             }
@@ -410,7 +409,7 @@ fun SettingsScreen(
                                 .height(44.dp)
                                 .testTag("settings_open_auth_button"),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Lock,
@@ -452,7 +451,7 @@ fun SettingsScreen(
                         title = "Export Library as JSON",
                         subtitle = "Full JSON export containing all games, ratings, reviews and stats",
                         icon = Icons.Default.FileDownload,
-                        iconTint = NeonCyan,
+                        iconTint = PrimaryRed,
                         onClick = onExportJson,
                         tag = "setting_export_json"
                     )
@@ -468,7 +467,7 @@ fun SettingsScreen(
                         title = "Export Library as CSV",
                         subtitle = "Spreadsheet-ready CSV table file formatted for Excel or Google Sheets",
                         icon = Icons.Default.TableChart,
-                        iconTint = NeonCyan,
+                        iconTint = PrimaryRed,
                         onClick = onExportCsv,
                         tag = "setting_export_csv"
                     )
@@ -484,7 +483,7 @@ fun SettingsScreen(
                         title = "Import Library from JSON",
                         subtitle = "Restore or add games by pasting previously exported JSON data",
                         icon = Icons.Default.FileUpload,
-                        iconTint = CyberPurple,
+                        iconTint = PrimaryRed,
                         onClick = onImportJson,
                         tag = "setting_import_json"
                     )
@@ -515,7 +514,7 @@ fun SettingsScreen(
                         title = "Reset to Sample Games Collection",
                         subtitle = "Replace current library with curated starter collection (Elden Ring, Hades II, etc.)",
                         icon = Icons.Default.Refresh,
-                        iconTint = CyberPurple,
+                        iconTint = PrimaryRed,
                         onClick = onResetSampleData,
                         tag = "setting_reset_sample"
                     )
@@ -569,13 +568,13 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(NeonCyan.copy(alpha = 0.15f)),
+                                .background(PrimaryRed.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Info,
                                 contentDescription = null,
-                                tint = NeonCyan,
+                                tint = PrimaryRed,
                                 modifier = Modifier.size(20.dp)
                             )
                         }

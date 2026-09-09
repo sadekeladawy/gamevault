@@ -58,8 +58,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -74,6 +77,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -91,12 +95,11 @@ import com.example.data.remote.rawg.RawgScreenshotDto
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.AccentRose
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
 import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -117,6 +120,7 @@ fun GameDetailDialog(
     onToggleFavorite: (() -> Unit)? = null,
     onArchiveToggle: ((Game) -> Unit)? = null,
     onStatusChange: ((GameStatus) -> Unit)? = null,
+    onSaveNotes: ((String) -> Unit)? = null,
     onAddToVault: ((RawgGameDto, GameStatus) -> Unit)? = null,
     onSelectSimilarGame: ((RawgGameDto) -> Unit)? = null,
     isInVault: Boolean = false,
@@ -261,7 +265,7 @@ fun GameDetailDialog(
                             Icon(
                                 imageVector = Icons.Outlined.VideogameAsset,
                                 contentDescription = null,
-                                tint = CyberPurple.copy(alpha = 0.5f),
+                                tint = PrimaryRed.copy(alpha = 0.5f),
                                 modifier = Modifier.size(72.dp)
                             )
                         }
@@ -377,7 +381,7 @@ fun GameDetailDialog(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = platforms.firstOrNull() ?: "PC",
-                                color = NeonCyan,
+                                color = PrimaryRed,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 13.sp
                             )
@@ -443,7 +447,7 @@ fun GameDetailDialog(
                             modifier = Modifier.padding(vertical = 8.dp)
                         ) {
                             CircularProgressIndicator(
-                                color = NeonCyan,
+                                color = PrimaryRed,
                                 strokeWidth = 2.dp,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -473,8 +477,8 @@ fun GameDetailDialog(
                                     onClick = { onStatusChange(status) },
                                     label = { Text(status.displayName) },
                                     colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = CyberPurple.copy(alpha = 0.25f),
-                                        selectedLabelColor = NeonCyan,
+                                        selectedContainerColor = PrimaryRed.copy(alpha = 0.22f),
+                                        selectedLabelColor = PrimaryRed,
                                         containerColor = DarkCard,
                                         labelColor = TextSecondary
                                     ),
@@ -482,7 +486,7 @@ fun GameDetailDialog(
                                         enabled = true,
                                         selected = isSelected,
                                         borderColor = DarkCardBorder,
-                                        selectedBorderColor = CyberPurple
+                                        selectedBorderColor = PrimaryRed
                                     )
                                 )
                             }
@@ -496,7 +500,7 @@ fun GameDetailDialog(
                                 val targetDto = fullRawgDetails ?: rawgGameDto!!
                                 onAddToVault(targetDto, GameStatus.BACKLOG)
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = CyberPurple),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -602,7 +606,7 @@ fun GameDetailDialog(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(1.dp, if (isCurrentGameInSession) NeonCyan else DarkCardBorder, RoundedCornerShape(14.dp)),
+                                .border(1.dp, if (isCurrentGameInSession) PrimaryRed else DarkCardBorder, RoundedCornerShape(14.dp)),
                             colors = CardDefaults.cardColors(containerColor = DarkCard),
                             shape = RoundedCornerShape(14.dp)
                         ) {
@@ -644,11 +648,153 @@ fun GameDetailDialog(
                                     OutlinedButton(
                                         onClick = { onStartSession?.invoke(game) },
                                         shape = RoundedCornerShape(10.dp),
-                                        border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.6f))
+                                        border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.6f))
                                     ) {
-                                        Icon(Icons.Outlined.Schedule, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Outlined.Schedule, contentDescription = null, tint = PrimaryRed, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Start Playing", color = NeonCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text("Start Playing", color = PrimaryRed, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Private Notes Section (Custom, private text notes)
+                        var isEditingNotes by remember(game.id) { mutableStateOf(false) }
+                        var noteText by remember(game.id, game.notes) { mutableStateOf(game.notes) }
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, DarkCardBorder, RoundedCornerShape(14.dp))
+                                .testTag("detail_private_notes_card"),
+                            colors = CardDefaults.cardColors(containerColor = DarkCard),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = null,
+                                            tint = PrimaryRed,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "PRIVATE VAULT NOTES",
+                                            color = TextMuted,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 0.5.sp
+                                        )
+                                    }
+
+                                    if (!isEditingNotes && onSaveNotes != null) {
+                                        TextButton(
+                                            onClick = {
+                                                noteText = game.notes
+                                                isEditingNotes = true
+                                            },
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                            modifier = Modifier.testTag("detail_edit_notes_button")
+                                        ) {
+                                            Text(
+                                                text = if (game.notes.isBlank()) "+ Add Note" else "Edit Note",
+                                                color = PrimaryRed,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                if (isEditingNotes) {
+                                    OutlinedTextField(
+                                        value = noteText,
+                                        onValueChange = { noteText = it },
+                                        placeholder = {
+                                            Text(
+                                                text = "Write personal review, strategies, memorable moments, build info...",
+                                                color = TextMuted,
+                                                fontSize = 13.sp
+                                            )
+                                        },
+                                        minLines = 3,
+                                        maxLines = 8,
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = PrimaryRed,
+                                            unfocusedBorderColor = DarkCardBorder,
+                                            focusedTextColor = TextPrimary,
+                                            unfocusedTextColor = TextPrimary,
+                                            focusedContainerColor = DarkSurface,
+                                            unfocusedContainerColor = DarkSurface
+                                        ),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("detail_notes_input")
+                                    )
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        TextButton(
+                                            onClick = {
+                                                noteText = game.notes
+                                                isEditingNotes = false
+                                            }
+                                        ) {
+                                            Text("Cancel", color = TextMuted, fontSize = 12.sp)
+                                        }
+
+                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                        Button(
+                                            onClick = {
+                                                onSaveNotes?.invoke(noteText.trim())
+                                                isEditingNotes = false
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed),
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                            modifier = Modifier.testTag("detail_save_notes_button")
+                                        ) {
+                                            Text("Save Note", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                } else {
+                                    if (game.notes.isNotBlank()) {
+                                        Text(
+                                            text = game.notes,
+                                            color = TextPrimary,
+                                            fontSize = 13.sp,
+                                            lineHeight = 18.sp,
+                                            modifier = Modifier.testTag("detail_notes_display")
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "No private notes for this game yet. Tap \"+ Add Note\" to record your personal thoughts, boss strategies, or achievements.",
+                                            color = TextMuted,
+                                            fontSize = 12.sp,
+                                            fontStyle = FontStyle.Italic
+                                        )
                                     }
                                 }
                             }
@@ -732,7 +878,7 @@ fun GameDetailDialog(
                                 ) {
                                     Text(
                                         text = if (isDescriptionExpanded) "Show less" else "Read more",
-                                        color = NeonCyan,
+                                        color = PrimaryRed,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -740,7 +886,7 @@ fun GameDetailDialog(
                                     Icon(
                                         imageVector = if (isDescriptionExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                         contentDescription = null,
-                                        tint = NeonCyan,
+                                        tint = PrimaryRed,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -807,14 +953,14 @@ fun GameDetailDialog(
                                                 )
                                         )
 
-                                        // Center Play Button Icon with Neon Accent
+                                        // Center Play Button Icon with Primary Red Accent
                                         Box(
                                             modifier = Modifier
                                                 .size(48.dp)
                                                 .align(Alignment.Center)
                                                 .clip(CircleShape)
-                                                .background(CyberPurple.copy(alpha = 0.85f))
-                                                .border(1.5.dp, NeonCyan, CircleShape),
+                                                .background(PrimaryRed.copy(alpha = 0.85f))
+                                                .border(1.5.dp, Color.White.copy(alpha = 0.8f), CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
@@ -962,11 +1108,11 @@ fun GameDetailDialog(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.5f))
+                            border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.5f))
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp))
+                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = PrimaryRed, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Visit Official Game Website", color = NeonCyan, fontWeight = FontWeight.Bold)
+                            Text("Visit Official Game Website", color = PrimaryRed, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -983,7 +1129,7 @@ fun GameDetailDialog(
                                 shape = RoundedCornerShape(12.dp),
                                 border = BorderStroke(
                                     1.dp,
-                                    if (game.isArchived) AccentEmerald.copy(alpha = 0.6f) else NeonCyan.copy(alpha = 0.4f)
+                                    if (game.isArchived) AccentEmerald.copy(alpha = 0.6f) else PrimaryRed.copy(alpha = 0.4f)
                                 ),
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     containerColor = if (game.isArchived) AccentEmerald.copy(alpha = 0.12f) else DarkCard
@@ -992,13 +1138,13 @@ fun GameDetailDialog(
                                 Icon(
                                     imageVector = if (game.isArchived) Icons.Default.Unarchive else Icons.Default.Archive,
                                     contentDescription = null,
-                                    tint = if (game.isArchived) AccentEmerald else NeonCyan,
+                                    tint = if (game.isArchived) AccentEmerald else PrimaryRed,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = if (game.isArchived) "Unarchive Game (Restore to Active Library)" else "Archive Game (Hide from Active Library)",
-                                    color = if (game.isArchived) AccentEmerald else NeonCyan,
+                                    color = if (game.isArchived) AccentEmerald else PrimaryRed,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -1033,7 +1179,8 @@ fun GameDetailDialog(
                                     modifier = Modifier
                                         .weight(1f)
                                         .testTag("detail_edit_button"),
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = PrimaryRed)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Edit,

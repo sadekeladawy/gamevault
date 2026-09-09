@@ -53,11 +53,12 @@ enum class NavDestination(val title: String, val iconName: String) {
 }
 
 enum class SortOption(val displayName: String) {
+    DATE_ADDED("Date Added"),
+    ALPHABETICAL("Name (A to Z)"),
+    RELEASE_YEAR("Release Year"),
     RECENTLY_COMPLETED("Recently Completed"),
     RATING("Highest Rating"),
-    PLAYTIME("Most Playtime"),
-    ALPHABETICAL("A to Z"),
-    RELEASE_YEAR("Release Year")
+    PLAYTIME("Most Playtime")
 }
 
 data class LibraryFilters(
@@ -288,6 +289,9 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
 
             // Sort
             when (filters.sortOption) {
+                SortOption.DATE_ADDED -> list.sortedByDescending { it.createdAt }
+                SortOption.ALPHABETICAL -> list.sortedBy { it.title.lowercase() }
+                SortOption.RELEASE_YEAR -> list.sortedByDescending { it.releaseYear }
                 SortOption.RECENTLY_COMPLETED -> {
                     list.sortedWith(
                         compareByDescending<Game> { it.completionDate.orEmpty() }
@@ -296,8 +300,6 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                 }
                 SortOption.RATING -> list.sortedByDescending { it.rating }
                 SortOption.PLAYTIME -> list.sortedByDescending { it.playtimeHours }
-                SortOption.ALPHABETICAL -> list.sortedBy { it.title.lowercase() }
-                SortOption.RELEASE_YEAR -> list.sortedByDescending { it.releaseYear }
             }
         }.flowOn(Dispatchers.Default).stateIn(
             scope = viewModelScope,
@@ -771,6 +773,21 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                 _selectedGameForDetails.value = updated
             }
             _snackbarMessage.emit("Moved \"${game.title}\" to ${newStatus.displayName}")
+        }
+    }
+
+    fun updateGameNotes(game: Game, notes: String) {
+        val updated = game.copy(notes = notes, updatedAt = System.currentTimeMillis())
+        val user = currentUser.value
+        viewModelScope.launch {
+            repository.updateGame(updated)
+            if (user != null) {
+                firestoreRepository.saveUserGame(user.uid, updated)
+            }
+            if (_selectedGameForDetails.value?.id == game.id) {
+                _selectedGameForDetails.value = updated
+            }
+            _snackbarMessage.emit("Private notes updated for \"${game.title}\"")
         }
     }
 

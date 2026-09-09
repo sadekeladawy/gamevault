@@ -68,10 +68,9 @@ import com.example.ui.components.CommonPlatforms
 import com.example.ui.components.GameCard
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -154,7 +153,7 @@ fun LibraryScreen(
                             Icon(
                                 imageVector = Icons.Default.Sort,
                                 contentDescription = null,
-                                tint = NeonCyan,
+                                tint = PrimaryRed,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -178,7 +177,7 @@ fun LibraryScreen(
                                     text = {
                                         Text(
                                             text = option.displayName,
-                                            color = if (filters.sortOption == option) NeonCyan else TextPrimary,
+                                            color = if (filters.sortOption == option) PrimaryRed else TextPrimary,
                                             fontWeight = if (filters.sortOption == option) FontWeight.Bold else FontWeight.Normal
                                         )
                                     },
@@ -299,9 +298,9 @@ fun LibraryScreen(
                                 )
                             },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = NeonCyan.copy(alpha = 0.2f),
-                                selectedLabelColor = NeonCyan,
-                                selectedLeadingIconColor = NeonCyan,
+                                selectedContainerColor = PrimaryRed.copy(alpha = 0.18f),
+                                selectedLabelColor = PrimaryRed,
+                                selectedLeadingIconColor = PrimaryRed,
                                 containerColor = DarkCard,
                                 labelColor = TextSecondary
                             ),
@@ -309,7 +308,7 @@ fun LibraryScreen(
                                 enabled = true,
                                 selected = !filters.showArchived,
                                 borderColor = DarkCardBorder,
-                                selectedBorderColor = NeonCyan
+                                selectedBorderColor = PrimaryRed
                             ),
                             modifier = Modifier.testTag("filter_chip_active_games")
                         )
@@ -370,7 +369,7 @@ fun LibraryScreen(
                     },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = CyberPurple,
+                        focusedBorderColor = PrimaryRed,
                         unfocusedBorderColor = DarkCardBorder,
                         focusedTextColor = TextPrimary,
                         unfocusedTextColor = TextPrimary,
@@ -385,8 +384,13 @@ fun LibraryScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Status Filters
+                // Status Filter Chips
                 if (showStatusFilter) {
+                    val statusCounts = remember(totalVaultGames, filters.showArchived) {
+                        totalVaultGames.filter { it.isArchived == filters.showArchived }.groupingBy { it.status }.eachCount()
+                    }
+                    val currentSectionTotal = if (filters.showArchived) archivedGamesCount else activeGamesCount
+
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -395,10 +399,10 @@ fun LibraryScreen(
                         FilterChip(
                             selected = isAllSelected,
                             onClick = { onStatusChange(null) },
-                            label = { Text("All Status") },
+                            label = { Text("All ($currentSectionTotal)") },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = CyberPurple.copy(alpha = 0.25f),
-                                selectedLabelColor = NeonCyan,
+                                selectedContainerColor = PrimaryRed.copy(alpha = 0.18f),
+                                selectedLabelColor = PrimaryRed,
                                 containerColor = DarkCard,
                                 labelColor = TextSecondary
                             ),
@@ -406,19 +410,21 @@ fun LibraryScreen(
                                 enabled = true,
                                 selected = isAllSelected,
                                 borderColor = DarkCardBorder,
-                                selectedBorderColor = CyberPurple
-                            )
+                                selectedBorderColor = PrimaryRed
+                            ),
+                            modifier = Modifier.testTag("status_chip_all")
                         )
 
                         GameStatus.entries.forEach { s ->
                             val isSelected = filters.selectedStatus == s
+                            val count = statusCounts[s] ?: 0
                             FilterChip(
                                 selected = isSelected,
                                 onClick = { onStatusChange(if (isSelected) null else s) },
-                                label = { Text(s.displayName) },
+                                label = { Text("${s.displayName} ($count)") },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = CyberPurple.copy(alpha = 0.25f),
-                                    selectedLabelColor = NeonCyan,
+                                    selectedContainerColor = PrimaryRed.copy(alpha = 0.18f),
+                                    selectedLabelColor = PrimaryRed,
                                     containerColor = DarkCard,
                                     labelColor = TextSecondary
                                 ),
@@ -426,8 +432,9 @@ fun LibraryScreen(
                                     enabled = true,
                                     selected = isSelected,
                                     borderColor = DarkCardBorder,
-                                    selectedBorderColor = CyberPurple
-                                )
+                                    selectedBorderColor = PrimaryRed
+                                ),
+                                modifier = Modifier.testTag("status_chip_${s.name.lowercase()}")
                             )
                         }
                     }
@@ -446,8 +453,8 @@ fun LibraryScreen(
                         onClick = { onPlatformChange(null) },
                         label = { Text("All Platforms") },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = NeonCyan.copy(alpha = 0.2f),
-                            selectedLabelColor = NeonCyan,
+                            selectedContainerColor = PrimaryRed.copy(alpha = 0.18f),
+                            selectedLabelColor = PrimaryRed,
                             containerColor = DarkCard,
                             labelColor = TextSecondary
                         ),
@@ -455,7 +462,7 @@ fun LibraryScreen(
                             enabled = true,
                             selected = isAllPlatforms,
                             borderColor = DarkCardBorder,
-                            selectedBorderColor = NeonCyan
+                            selectedBorderColor = PrimaryRed
                         )
                     )
 
@@ -466,8 +473,8 @@ fun LibraryScreen(
                             onClick = { onPlatformChange(if (isSelected) null else p) },
                             label = { Text(p) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = NeonCyan.copy(alpha = 0.2f),
-                                selectedLabelColor = NeonCyan,
+                                selectedContainerColor = PrimaryRed.copy(alpha = 0.18f),
+                                selectedLabelColor = PrimaryRed,
                                 containerColor = DarkCard,
                                 labelColor = TextSecondary
                             ),
@@ -475,7 +482,7 @@ fun LibraryScreen(
                                 enabled = true,
                                 selected = isSelected,
                                 borderColor = DarkCardBorder,
-                                selectedBorderColor = NeonCyan
+                                selectedBorderColor = PrimaryRed
                             )
                         )
                     }
@@ -509,7 +516,7 @@ fun LibraryScreen(
                             Icon(
                                 imageVector = if (filters.showArchived) Icons.Default.Archive else Icons.Outlined.VideogameAssetOff,
                                 contentDescription = null,
-                                tint = if (filters.showArchived) AccentAmber.copy(alpha = 0.8f) else CyberPurple.copy(alpha = 0.7f),
+                                tint = if (filters.showArchived) AccentAmber.copy(alpha = 0.8f) else PrimaryRed.copy(alpha = 0.7f),
                                 modifier = Modifier.size(36.dp)
                             )
                         }
@@ -542,7 +549,7 @@ fun LibraryScreen(
 
                         Button(
                             onClick = onAddGame,
-                            colors = ButtonDefaults.buttonColors(containerColor = CyberPurple),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(

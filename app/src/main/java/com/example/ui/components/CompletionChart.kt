@@ -31,10 +31,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 
@@ -49,7 +48,7 @@ fun CompletionBarChart(
     subtitle: String,
     items: List<BarChartItem>,
     modifier: Modifier = Modifier,
-    accentGradient: List<Color> = listOf(CyberPurple, NeonCyan)
+    accentGradient: List<Color> = listOf(PrimaryRed, Color(0xFFFF5252))
 ) {
     val maxValue = remember(items) { (items.maxOfOrNull { it.value } ?: 1).coerceAtLeast(1) }
     val totalInChart = remember(items) { items.sumOf { it.value } }
@@ -87,7 +86,7 @@ fun CompletionBarChart(
 
                 Text(
                     text = "$totalInChart Completed",
-                    color = NeonCyan,
+                    color = PrimaryRed,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold
                 )

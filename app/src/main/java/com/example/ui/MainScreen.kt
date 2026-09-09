@@ -109,12 +109,11 @@ import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StatisticsScreen
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
 import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -222,9 +221,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(
-                                        Brush.linearGradient(listOf(CyberPurple, NeonCyan))
-                                    ),
+                                    .background(PrimaryRed),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -260,7 +257,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                 .height(46.dp)
                                 .testTag("sidebar_add_game_button"),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
@@ -287,7 +284,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                         Icon(
                                             imageVector = getDestinationIcon(dest),
                                             contentDescription = null,
-                                            tint = if (isSelected) NeonCyan else TextMuted
+                                            tint = if (isSelected) PrimaryRed else TextMuted
                                         )
                                     },
                                     label = {
@@ -300,7 +297,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                     onClick = { viewModel.navigateTo(dest) },
                                     shape = RoundedCornerShape(12.dp),
                                     colors = NavigationDrawerItemDefaults.colors(
-                                        selectedContainerColor = CyberPurple.copy(alpha = 0.22f),
+                                        selectedContainerColor = PrimaryRed.copy(alpha = 0.15f),
                                         selectedTextColor = TextPrimary,
                                         unselectedTextColor = TextSecondary
                                     ),
@@ -332,7 +329,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                             .clip(CircleShape)
                                             .border(
                                                 1.5.dp,
-                                                if (currentUser?.isEmailVerified == true) NeonCyan else AccentAmber,
+                                                if (currentUser?.isEmailVerified == true) AccentEmerald else PrimaryRed,
                                                 CircleShape
                                             )
                                             .background(DarkBg),
@@ -348,7 +345,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                         } else {
                                             Text(
                                                 text = currentUser?.fullName?.firstOrNull()?.uppercase() ?: "G",
-                                                color = NeonCyan,
+                                                color = PrimaryRed,
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -380,9 +377,9 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                     .testTag("sidebar_sign_in_button"),
                                 shape = RoundedCornerShape(10.dp),
                                 border = ButtonDefaults.outlinedButtonBorder.copy(
-                                    brush = Brush.horizontalGradient(listOf(CyberPurple, NeonCyan))
+                                    brush = Brush.horizontalGradient(listOf(PrimaryRed, PrimaryRed))
                                 ),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan)
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryRed)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.AccountCircle,
@@ -451,9 +448,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                     modifier = Modifier
                                         .size(36.dp)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(
-                                            Brush.linearGradient(listOf(CyberPurple, NeonCyan))
-                                        ),
+                                        .background(PrimaryRed),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -491,7 +486,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                     .fillMaxWidth()
                                     .height(44.dp),
                                 shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = CyberPurple)
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Add,
@@ -518,7 +513,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                             Icon(
                                                 imageVector = getDestinationIcon(dest),
                                                 contentDescription = null,
-                                                tint = if (isSelected) NeonCyan else TextMuted
+                                                tint = if (isSelected) PrimaryRed else TextMuted
                                             )
                                         },
                                         label = {
@@ -534,7 +529,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                         },
                                         shape = RoundedCornerShape(12.dp),
                                         colors = NavigationDrawerItemDefaults.colors(
-                                            selectedContainerColor = CyberPurple.copy(alpha = 0.22f),
+                                            selectedContainerColor = PrimaryRed.copy(alpha = 0.15f),
                                             selectedTextColor = TextPrimary,
                                             unselectedTextColor = TextSecondary
                                         ),
@@ -567,77 +562,77 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                             modifier = Modifier
                                                 .size(36.dp)
                                                 .clip(CircleShape)
-                                                .border(
-                                                    1.5.dp,
-                                                    if (currentUser?.isEmailVerified == true) NeonCyan else AccentAmber,
-                                                    CircleShape
-                                                )
-                                                .background(DarkBg),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            if (!currentUser?.photoUrl.isNullOrBlank()) {
-                                                AsyncImage(
-                                                    model = currentUser?.photoUrl,
-                                                    contentDescription = "Avatar",
-                                                    modifier = Modifier.size(36.dp).clip(CircleShape),
-                                                    contentScale = ContentScale.Crop
-                                                )
-                                            } else {
-                                                Text(
-                                                    text = currentUser?.fullName?.firstOrNull()?.uppercase() ?: "G",
-                                                    color = NeonCyan,
-                                                    fontSize = 14.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = currentUser?.fullName.orEmpty().ifEmpty { "Gamer" },
-                                                color = TextPrimary,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                maxLines = 1
+                                            .border(
+                                                1.5.dp,
+                                                if (currentUser?.isEmailVerified == true) AccentEmerald else PrimaryRed,
+                                                CircleShape
                                             )
+                                            .background(DarkBg),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (!currentUser?.photoUrl.isNullOrBlank()) {
+                                            AsyncImage(
+                                                model = currentUser?.photoUrl,
+                                                contentDescription = "Avatar",
+                                                modifier = Modifier.size(36.dp).clip(CircleShape),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
                                             Text(
-                                                text = if (currentUser?.isEmailVerified == true) "Cloud Synced" else "Email unverified",
-                                                color = if (currentUser?.isEmailVerified == true) AccentEmerald else AccentAmber,
-                                                fontSize = 10.sp
+                                                text = currentUser?.fullName?.firstOrNull()?.uppercase() ?: "G",
+                                                color = PrimaryRed,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold
                                             )
                                         }
                                     }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = currentUser?.fullName.orEmpty().ifEmpty { "Gamer" },
+                                            color = TextPrimary,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = if (currentUser?.isEmailVerified == true) "Cloud Synced" else "Email unverified",
+                                            color = if (currentUser?.isEmailVerified == true) AccentEmerald else AccentAmber,
+                                            fontSize = 10.sp
+                                        )
+                                    }
                                 }
-                            } else {
-                                OutlinedButton(
-                                    onClick = {
-                                        scope.launch { drawerState.close() }
-                                        viewModel.navigateTo(NavDestination.AUTH)
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(40.dp)
-                                        .testTag("drawer_sign_in_button"),
-                                    shape = RoundedCornerShape(10.dp),
-                                    border = ButtonDefaults.outlinedButtonBorder.copy(
-                                        brush = Brush.horizontalGradient(listOf(CyberPurple, NeonCyan))
-                                    ),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AccountCircle,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(17.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Sign In / Sync", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = {
+                                    scope.launch { drawerState.close() }
+                                    viewModel.navigateTo(NavDestination.AUTH)
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(40.dp)
+                                    .testTag("drawer_sign_in_button"),
+                                shape = RoundedCornerShape(10.dp),
+                                border = ButtonDefaults.outlinedButtonBorder.copy(
+                                    brush = Brush.horizontalGradient(listOf(PrimaryRed, PrimaryRed))
+                                ),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryRed)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AccountCircle,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(17.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Sign In / Sync", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
-            ) {
-                Scaffold(
+            }
+        ) {
+            Scaffold(
                     // Explicit WindowInsets handling for the mobile compact layout: the
                     // TopAppBar/NavigationBar below consume the status/navigation bar insets
                     // themselves, and the content area is padded using the device's actual
@@ -678,7 +673,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                                 .clip(CircleShape)
                                                 .border(
                                                     1.5.dp,
-                                                    if (currentUser?.isEmailVerified == true) NeonCyan else AccentAmber,
+                                                    if (currentUser?.isEmailVerified == true) AccentEmerald else PrimaryRed,
                                                     CircleShape
                                                 )
                                                 .background(DarkSurface),
@@ -694,7 +689,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                             } else {
                                                 Text(
                                                     text = currentUser?.fullName?.firstOrNull()?.uppercase() ?: "G",
-                                                    color = NeonCyan,
+                                                    color = PrimaryRed,
                                                     fontSize = 13.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
@@ -709,11 +704,11 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                         Icon(
                                             imageVector = Icons.Default.AccountCircle,
                                             contentDescription = null,
-                                            tint = NeonCyan,
+                                            tint = PrimaryRed,
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Sign In", color = NeonCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text("Sign In", color = PrimaryRed, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             },
@@ -755,7 +750,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                                 Icon(
                                                     imageVector = getDestinationIcon(dest),
                                                     contentDescription = dest.title,
-                                                    tint = if (isSelected) NeonCyan else TextMuted
+                                                    tint = if (isSelected) PrimaryRed else TextMuted
                                                 )
                                             },
                                             label = {
@@ -763,16 +758,16 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                                     text = dest.title,
                                                     fontSize = 10.sp,
                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                    color = if (isSelected) NeonCyan else TextMuted
+                                                    color = if (isSelected) PrimaryRed else TextMuted
                                                 )
                                             },
                                             selected = isSelected,
                                             onClick = { viewModel.navigateTo(dest) },
                                             colors = NavigationBarItemDefaults.colors(
-                                                indicatorColor = CyberPurple.copy(alpha = 0.2f),
-                                                selectedIconColor = NeonCyan,
+                                                indicatorColor = PrimaryRed.copy(alpha = 0.15f),
+                                                selectedIconColor = PrimaryRed,
                                                 unselectedIconColor = TextMuted,
-                                                selectedTextColor = NeonCyan,
+                                                selectedTextColor = PrimaryRed,
                                                 unselectedTextColor = TextMuted
                                             )
                                         )
@@ -785,7 +780,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                         if (currentDestination != NavDestination.AI_CHAT) {
                             FloatingActionButton(
                                 onClick = { viewModel.openAddGame() },
-                                containerColor = CyberPurple,
+                                containerColor = PrimaryRed,
                                 contentColor = Color.White,
                                 shape = CircleShape,
                                 modifier = Modifier.testTag("main_fab_add_game")
@@ -831,7 +826,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                 }
                                 Text(
                                     text = "Send Link",
-                                    color = NeonCyan,
+                                    color = PrimaryRed,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -874,7 +869,8 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                 onDelete = { viewModel.confirmDeleteGame(game) },
                 onToggleFavorite = { viewModel.toggleFavorite(game) },
                 onArchiveToggle = { viewModel.toggleArchiveGame(it) },
-                onStatusChange = { newStatus -> viewModel.updateGameStatus(game, newStatus) }
+                onStatusChange = { newStatus -> viewModel.updateGameStatus(game, newStatus) },
+                onSaveNotes = { newNotes -> viewModel.updateGameNotes(game, newNotes) }
             )
         }
 

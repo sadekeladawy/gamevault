@@ -27,10 +27,11 @@ class AiChatRepository(
     private fun sanitizeAiTextResponse(text: String): String {
         if (text.isBlank()) return text
         return text
-            .replace(Regex("[⭐★☆]\\s*([0-9]+(\\.[0-9]+)?)\\s*/\\s*5(\\.0)?"), "Rating: $1/5.0")
-            .replace(Regex("[⭐★☆]\\s*([0-9]+(\\.[0-9]+)?)\\s*/\\s*10(\\.0)?"), "Rating: $1/10.0")
-            .replace(Regex("[⭐★☆]\\s*([0-9]+(\\.[0-9]+)?)"), "Rating: $1/5.0")
-            .replace(Regex("[⭐★☆]"), "")
+            .replace(Regex("[⭐★☆✨🌟]\\s*([0-9]+(\\.[0-9]+)?)\\s*/\\s*5(\\.0)?"), "Rating: $1/5.0")
+            .replace(Regex("[⭐★☆✨🌟]\\s*([0-9]+(\\.[0-9]+)?)\\s*/\\s*10(\\.0)?"), "Rating: $1/10.0")
+            .replace(Regex("[⭐★☆✨🌟]\\s*([0-9]+(\\.[0-9]+)?)"), "Rating: $1/5.0")
+            .replace(Regex("[⭐★☆✨🌟]"), "")
+            .replace(Regex("\\*{3,}"), "") // Remove *** decorative dividers
     }
 
     suspend fun processUserMessage(
@@ -304,12 +305,12 @@ class AiChatRepository(
         if (rawgGames.isNotEmpty()) {
             val sb = StringBuilder()
             if (lower.contains("compare")) {
-                sb.append("🎮 **Game Comparison Summary**\n\n")
+                sb.append("Game Comparison Summary\n\n")
                 sb.append("Here is how these titles compare based on RAWG database records:\n\n")
             } else if (lower.contains("tell me about") || lower.contains("what is")) {
-                sb.append("📖 **Game Intelligence Report**\n\n")
+                sb.append("Game Intelligence Report\n\n")
             } else {
-                sb.append("✨ **GameVault AI Recommendations**\n\n")
+                sb.append("GameVault AI Recommendations\n\n")
                 sb.append("Based on your preferences and the official RAWG database, here are top handpicked titles:\n\n")
             }
 
@@ -320,28 +321,28 @@ class AiChatRepository(
                 val genres = game.genres?.mapNotNull { it.name }?.joinToString(", ") ?: "Action"
                 val platforms = game.platforms?.mapNotNull { it.platform?.name }?.take(3)?.joinToString(", ") ?: "PC/Console"
 
-                sb.append("${idx + 1}. **${game.name}** ($releaseYear)\n")
-                sb.append("   • **Scores:** $ratingStr$metacriticStr\n")
-                sb.append("   • **Genres:** $genres\n")
-                sb.append("   • **Platforms:** $platforms\n\n")
+                sb.append("${idx + 1}. ${game.name} ($releaseYear)\n")
+                sb.append("   • Scores: $ratingStr$metacriticStr\n")
+                sb.append("   • Genres: $genres\n")
+                sb.append("   • Platforms: $platforms\n\n")
             }
 
-            sb.append("💡 *Tip: Tap any game card below to view full details, screenshots, or add it to your Vault!*")
+            sb.append("Tip: Tap any game card below to view full details, screenshots, or add it to your Vault!")
             return sb.toString()
         }
 
         // Generic friendly response if no RAWG games found
         return when {
             lower.contains("hello") || lower.contains("hi") || lower.contains("hey") ->
-                "👋 Hello! I'm **GameVault AI**, powered by Firebase AI Logic. Ask me to recommend games, compare titles, help pick from your backlog, or search RAWG for top games!"
+                "Hello! I am GameVault AI, powered by Firebase AI Logic. Ask me to recommend games, compare titles, help pick from your backlog, or search RAWG for top games!"
             lower.contains("help") ->
-                "💡 **How I Can Help You:**\n\n" +
-                "• **Backlog Assistant:** Ask 'What should I play tonight?' or 'Pick 5 games from my backlog'.\n" +
-                "• **Discover Games:** Ask for RPGs released after 2020, horror games on PlayStation, or top PC titles.\n" +
-                "• **Game Info:** Ask 'Tell me about Cyberpunk 2077' or 'What is Elden Ring?'.\n" +
-                "• **Compare Titles:** Ask 'Compare Witcher 3 and Skyrim'."
+                "How I Can Help You:\n\n" +
+                "• Backlog Assistant: Ask 'What should I play tonight?' or 'Pick 5 games from my backlog'.\n" +
+                "• Discover Games: Ask for RPGs released after 2020, horror games on PlayStation, or top PC titles.\n" +
+                "• Game Info: Ask 'Tell me about Cyberpunk 2077' or 'What is Elden Ring?'.\n" +
+                "• Compare Titles: Ask 'Compare Witcher 3 and Skyrim'."
             else ->
-                "I searched the database for **\"$userText\"**. Try searching by genre (e.g., RPG, Shooter), platform (PC, PS5), or ask me to recommend top rated games released after 2020!"
+                "I searched the database for \"$userText\". Try searching by genre (e.g., RPG, Shooter), platform (PC, PS5), or ask me to recommend top rated games released after 2020!"
         }
     }
 }

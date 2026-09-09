@@ -6,14 +6,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val GameVaultColorScheme = darkColorScheme(
-    primary = PrimaryAccent,
+    primary = PrimaryRed,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFF1E1B4B),
-    onPrimaryContainer = Color(0xFFE0E7FF),
-    secondary = NeonCyan,
-    onSecondary = Color.Black,
-    secondaryContainer = Color(0xFF0C4A6E),
-    onSecondaryContainer = Color(0xFFE0F2FE),
+    primaryContainer = Color(0xFF2A1012),
+    onPrimaryContainer = Color(0xFFFFDAD6),
+    secondary = Color(0xFFE2E2E8),
+    onSecondary = Color(0xFF141416),
+    secondaryContainer = Color(0xFF242429),
+    onSecondaryContainer = TextPrimary,
     tertiary = AccentAmber,
     onTertiary = Color.Black,
     background = DarkBg,
@@ -23,7 +23,7 @@ private val GameVaultColorScheme = darkColorScheme(
     surfaceVariant = DarkCard,
     onSurfaceVariant = TextSecondary,
     outline = DarkCardBorder,
-    outlineVariant = Color(0xFF202636)
+    outlineVariant = Color(0xFF27272C)
 )
 
 @Composable

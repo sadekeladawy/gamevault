@@ -53,6 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,17 +74,27 @@ import com.example.data.model.ai.MessageSender
 import com.example.data.remote.rawg.RawgGameDto
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
 import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.AiChatViewModel
 import java.util.Locale
+
+private fun cleanAiPresentationText(raw: String): String {
+    if (raw.isBlank()) return raw
+    return raw
+        .replace(Regex("[⭐★☆✨🌟]"), "")
+        .replace(Regex("Rating\\s*:\\s*[⭐★☆✨🌟]+"), "Rating: ")
+        .replace(Regex("(?m)^\\s*\\*{3,}\\s*$"), "")
+        .replace("**", "")
+        .replace(Regex("(?m)^\\s*\\*\\s+"), "• ")
+        .trim()
+}
 
 @Composable
 fun AiChatScreen(
@@ -225,13 +236,11 @@ private fun AiChatHeader(onClearChat: () -> Unit) {
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(listOf(CyberPurple, NeonCyan))
-                        ),
+                        .background(PrimaryRed),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AutoAwesome,
+                        imageVector = Icons.Default.SmartToy,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(22.dp)
@@ -280,7 +289,7 @@ private fun SuggestedPromptsSection(onPromptClick: (String) -> Unit) {
                 Icon(
                     Icons.Default.Psychology,
                     contentDescription = null,
-                    tint = NeonCyan,
+                    tint = PrimaryRed,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -296,19 +305,19 @@ private fun SuggestedPromptsSection(onPromptClick: (String) -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
 
             val prompts = listOf(
-                "🎯 What should I play from my backlog tonight?",
-                "🎮 Recommend 5 RPG games released after 2020",
-                "⚔️ What games are similar to Elden Ring?",
-                "🚀 Best Sci-Fi games on PC rated above 4.0",
-                "🔍 Tell me everything about Cyberpunk 2077",
-                "🆚 Compare Witcher 3 and Skyrim"
+                "What should I play from my backlog tonight?",
+                "Recommend 5 RPG games released after 2020",
+                "What games are similar to Elden Ring?",
+                "Best Sci-Fi games on PC rated above 4.0",
+                "Tell me everything about Cyberpunk 2077",
+                "Compare Witcher 3 and Skyrim"
             )
 
             prompts.forEach { prompt ->
                 Surface(
                     color = DarkBg,
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, CyberPurple.copy(alpha = 0.4f)),
+                    border = BorderStroke(1.dp, DarkCardBorder),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
@@ -333,6 +342,7 @@ private fun ChatMessageItem(
     onAddRawgGameToVault: ((RawgGameDto) -> Unit)? = null
 ) {
     val isUser = message.sender == MessageSender.USER
+    val presentationText = remember(message.text) { cleanAiPresentationText(message.text) }
 
     Column(
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
@@ -347,7 +357,7 @@ private fun ChatMessageItem(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(CyberPurple),
+                        .background(PrimaryRed),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -361,7 +371,7 @@ private fun ChatMessageItem(
             }
 
             Surface(
-                color = if (isUser) CyberPurple else DarkCard,
+                color = if (isUser) PrimaryRed else DarkCard,
                 shape = RoundedCornerShape(
                     topStart = 16.dp,
                     topEnd = 16.dp,
@@ -373,7 +383,7 @@ private fun ChatMessageItem(
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text(
-                        text = message.text,
+                        text = presentationText,
                         color = if (isUser) Color.White else TextPrimary,
                         fontSize = 14.sp,
                         lineHeight = 20.sp
@@ -389,7 +399,7 @@ private fun ChatMessageItem(
                 text = "Interactive Game Recommendations (${message.recommendedGames.size}):",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = NeonCyan,
+                color = TextPrimary,
                 modifier = Modifier.padding(start = 40.dp, bottom = 6.dp)
             )
 
@@ -426,7 +436,7 @@ private fun AiRecommendedGameCard(
 
     Card(
         colors = CardDefaults.cardColors(containerColor = DarkCard),
-        border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.5f)),
+        border = BorderStroke(1.dp, DarkCardBorder),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .width(170.dp)
@@ -461,7 +471,7 @@ private fun AiRecommendedGameCard(
                     val mcColor = when {
                         game.metacritic!! >= 75 -> AccentEmerald
                         game.metacritic >= 50 -> AccentAmber
-                        else -> Color(0xFFE53935)
+                        else -> PrimaryRed
                     }
                     Surface(
                         color = mcColor,
@@ -536,12 +546,12 @@ private fun AiRecommendedGameCard(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
-                                    .background(CyberPurple.copy(alpha = 0.2f))
+                                    .background(DarkSurface)
                                     .padding(horizontal = 4.dp, vertical = 1.dp)
                             ) {
                                 Text(
                                     text = platformText,
-                                    color = NeonCyan,
+                                    color = TextSecondary,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
@@ -552,14 +562,14 @@ private fun AiRecommendedGameCard(
 
                         if (onAdd != null) {
                             Surface(
-                                color = CyberPurple.copy(alpha = 0.3f),
+                                color = PrimaryRed.copy(alpha = 0.15f),
                                 shape = RoundedCornerShape(6.dp),
-                                border = BorderStroke(0.5.dp, CyberPurple),
+                                border = BorderStroke(0.5.dp, PrimaryRed),
                                 modifier = Modifier.clickable { onAdd() }
                             ) {
                                 Text(
                                     text = "+ Add",
-                                    color = NeonCyan,
+                                    color = PrimaryRed,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -594,13 +604,13 @@ private fun ThinkingIndicatorItem() {
             modifier = Modifier
                 .size(32.dp)
                 .clip(CircleShape)
-                .background(CyberPurple),
+                .background(PrimaryRed),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                Icons.Default.AutoAwesome,
+                Icons.Default.SmartToy,
                 contentDescription = null,
-                tint = NeonCyan,
+                tint = Color.White,
                 modifier = Modifier
                     .size(18.dp)
                     .scale(scale)
@@ -620,7 +630,7 @@ private fun ThinkingIndicatorItem() {
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(14.dp),
-                    color = NeonCyan,
+                    color = PrimaryRed,
                     strokeWidth = 2.dp
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -662,7 +672,7 @@ private fun ChatInputBar(
                 keyboardActions = KeyboardActions(onSend = { onSend() }),
                 shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = NeonCyan,
+                    focusedBorderColor = PrimaryRed,
                     unfocusedBorderColor = DarkCardBorder,
                     focusedContainerColor = DarkBg,
                     unfocusedContainerColor = DarkBg,
@@ -681,10 +691,7 @@ private fun ChatInputBar(
                     .size(44.dp)
                     .clip(CircleShape)
                     .background(
-                        if (inputText.isNotBlank() && !isThinking)
-                            Brush.linearGradient(listOf(CyberPurple, NeonCyan))
-                        else
-                            Brush.linearGradient(listOf(DarkCardBorder, DarkCardBorder))
+                        if (inputText.isNotBlank() && !isThinking) PrimaryRed else DarkCardBorder
                     )
             ) {
                 Icon(

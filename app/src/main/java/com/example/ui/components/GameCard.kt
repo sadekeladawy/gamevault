@@ -45,16 +45,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.request.CachePolicy
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentRose
-import com.example.ui.theme.CyberPurple
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
-import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.StatusBacklogColor
 import com.example.ui.theme.StatusCompletedColor
 import com.example.ui.theme.StatusDroppedColor
@@ -68,15 +68,15 @@ import java.util.Locale
 fun GameStatusBadge(status: GameStatus, modifier: Modifier = Modifier) {
     val (bg, textCol) = remember(status) {
         when (status) {
-            GameStatus.WISHLIST -> Pair(CyberPurple.copy(alpha = 0.25f), NeonCyan)
-            GameStatus.COMPLETED -> Pair(StatusCompletedColor.copy(alpha = 0.2f), StatusCompletedColor)
-            GameStatus.CURRENTLY_PLAYING -> Pair(StatusPlayingColor.copy(alpha = 0.2f), StatusPlayingColor)
-            GameStatus.BACKLOG -> Pair(StatusBacklogColor.copy(alpha = 0.2f), StatusBacklogColor)
-            GameStatus.DROPPED -> Pair(StatusDroppedColor.copy(alpha = 0.2f), StatusDroppedColor)
+            GameStatus.WISHLIST -> Pair(PrimaryRed.copy(alpha = 0.2f), PrimaryRed)
+            GameStatus.COMPLETED -> Pair(StatusCompletedColor.copy(alpha = 0.18f), StatusCompletedColor)
+            GameStatus.CURRENTLY_PLAYING -> Pair(StatusPlayingColor.copy(alpha = 0.18f), StatusPlayingColor)
+            GameStatus.BACKLOG -> Pair(Color(0xFF26262B), TextSecondary)
+            GameStatus.DROPPED -> Pair(StatusDroppedColor.copy(alpha = 0.18f), StatusDroppedColor)
         }
     }
     val badgeShape = remember { RoundedCornerShape(8.dp) }
-    val borderStroke = remember(textCol) { BorderStroke(1.dp, textCol.copy(alpha = 0.4f)) }
+    val borderStroke = remember(textCol) { BorderStroke(1.dp, textCol.copy(alpha = 0.35f)) }
 
     Surface(
         color = bg,
@@ -103,19 +103,22 @@ fun GameCard(
 ) {
     val context = LocalContext.current
     val cardShape = remember { RoundedCornerShape(16.dp) }
-    val cardBorder = remember { androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder) }
+    val cardBorder = remember { BorderStroke(1.dp, DarkCardBorder) }
     val placeholderGradient = remember {
-        Brush.verticalGradient(listOf(Color(0xFF22293A), Color(0xFF10131B)))
+        Brush.verticalGradient(listOf(Color(0xFF1E1E22), Color(0xFF121215)))
     }
     val coverShadowGradient = remember {
-        Brush.verticalGradient(listOf(Color.Transparent, Color(0xDD0A0D14)))
+        Brush.verticalGradient(listOf(Color.Transparent, Color(0xDE0B0B0D)))
     }
 
     val imageRequest = remember(game.coverUrl, context) {
         if (game.coverUrl.isNotBlank()) {
             ImageRequest.Builder(context)
                 .data(game.coverUrl)
-                .crossfade(150)
+                .size(360, 480)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .crossfade(100)
                 .build()
         } else null
     }
@@ -174,7 +177,7 @@ fun GameCard(
                             Icon(
                                 imageVector = Icons.Outlined.VideogameAsset,
                                 contentDescription = null,
-                                tint = CyberPurple.copy(alpha = 0.7f),
+                                tint = PrimaryRed.copy(alpha = 0.5f),
                                 modifier = Modifier.size(44.dp)
                             )
                             Spacer(modifier = Modifier.height(6.dp))
@@ -270,7 +273,7 @@ fun GameCard(
                     ) {
                         Text(
                             text = game.platform,
-                            color = NeonCyan,
+                            color = TextPrimary,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
