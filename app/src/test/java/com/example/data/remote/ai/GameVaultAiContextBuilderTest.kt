@@ -66,4 +66,24 @@ class GameVaultAiContextBuilderTest {
         val context = GameVaultAiContextBuilder.buildRawgMetadataContext(emptyList())
         assertEquals("", context)
     }
+
+    @Test
+    fun testBuildChatHistory() {
+        val messages = listOf(
+            com.example.data.model.ai.ChatMessage(
+                sender = com.example.data.model.ai.MessageSender.USER,
+                text = "What RPG should I play next?"
+            ),
+            com.example.data.model.ai.ChatMessage(
+                sender = com.example.data.model.ai.MessageSender.AI,
+                text = "Based on your backlog, you should play Elden Ring!"
+            )
+        )
+        val history = GameVaultAiContextBuilder.buildChatHistory(messages)
+        assertEquals(2, history.size)
+        assertEquals("user", history[0].role)
+        assertEquals("What RPG should I play next?", history[0].text)
+        assertEquals("model", history[1].role)
+        assertEquals("Based on your backlog, you should play Elden Ring!", history[1].text)
+    }
 }

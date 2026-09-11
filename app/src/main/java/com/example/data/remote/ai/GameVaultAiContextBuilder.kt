@@ -5,8 +5,6 @@ import com.example.data.model.GameStatus
 import com.example.data.model.ai.ChatMessage
 import com.example.data.model.ai.MessageSender
 import com.example.data.remote.rawg.RawgGameDto
-import com.google.firebase.ai.type.Content
-import com.google.firebase.ai.type.content
 import java.util.Locale
 
 object GameVaultAiContextBuilder {
@@ -162,16 +160,17 @@ The user is considering this game and wants your copilot guidance on whether it'
     }
 
     /**
-     * Converts a list of [ChatMessage] into Firebase AI Logic [Content] objects for multi-turn chat sessions.
+     * Converts a list of [ChatMessage] into [ChatTurnDto] objects for multi-turn chat sessions.
      */
-    fun buildChatHistory(messages: List<ChatMessage>): List<Content> {
+    fun buildChatHistory(messages: List<ChatMessage>): List<ChatTurnDto> {
         return messages
             .filter { !it.isLoading && !it.isError && it.text.isNotBlank() }
             .map { msg ->
                 val role = if (msg.sender == MessageSender.USER) "user" else "model"
-                content(role) {
-                    text(msg.text)
-                }
+                ChatTurnDto(
+                    role = role,
+                    text = msg.text
+                )
             }
     }
 }

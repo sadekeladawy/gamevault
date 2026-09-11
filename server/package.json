@@ -1,0 +1,9 @@
+{
+  "name": "gamevault-ai-server",
+  "version": "1.0.0",
+  "description": "Secure Server-Side Gemini AI Gateway for GameVault",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  }
+}

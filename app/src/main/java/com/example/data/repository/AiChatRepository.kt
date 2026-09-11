@@ -10,7 +10,6 @@ import com.example.data.remote.ai.GameVaultAiContextBuilder
 import com.example.data.remote.ai.GameVaultAiRepository
 import com.example.data.remote.rawg.RawgGameDto
 import com.example.data.remote.rawg.RawgRepository
-import com.google.firebase.ai.Chat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -37,26 +36,15 @@ class AiChatRepository(
     }
 
     /**
-     * Initializes a multi-turn chat session with optional prior conversation history.
+     * Sends a streaming message to Gemini via the secure server-side endpoint.
      */
-    fun startChat(conversationHistory: List<ChatMessage> = emptyList()): Chat {
-        val historyContent = GameVaultAiContextBuilder.buildChatHistory(conversationHistory)
-        return aiRepository.startChat(historyContent)
-    }
-
-    /**
-     * Sends a message within an active multi-turn [Chat] session.
-     */
-    suspend fun sendMessage(chatSession: Chat, userText: String): String? {
-        return aiRepository.sendMessage(chatSession, userText)?.let { sanitizeAiTextResponse(it) }
-    }
-
-    /**
-     * Sends a streaming message within an active multi-turn [Chat] session.
-     */
-    fun streamMessage(chatSession: Chat, userText: String): Flow<String> = flow {
+    fun streamChat(
+        prompt: String,
+        conversationHistory: List<ChatMessage> = emptyList(),
+        focusedContext: String? = null
+    ): Flow<String> = flow {
         var accumulated = ""
-        aiRepository.sendMessageStream(chatSession, userText).collect { chunk ->
+        aiRepository.streamChat(prompt, conversationHistory, focusedContext).collect { chunk ->
             accumulated += chunk
             emit(sanitizeAiTextResponse(accumulated))
         }
@@ -106,10 +94,10 @@ class AiChatRepository(
             }
         }
 
-        // Step 3: Generate response with Firebase AI Logic
+        // Step 3: Generate response with Gemini API
         try {
             val promptWithContext = buildPromptWithContext(trimmed, conversationHistory, rawgGames, userBacklog)
-            val responseText = aiRepository.generateContent(promptWithContext)
+            val responseText = aiRepository.generateChat(prompt = promptWithContext, conversationHistory = conversationHistory)
             if (!responseText.isNullOrBlank()) {
                 val sanitized = sanitizeAiTextResponse(responseText)
                 return@withContext ChatMessage(
@@ -120,7 +108,7 @@ class AiChatRepository(
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Firebase AI Logic exception: ${e.message}", e)
+            Log.e(TAG, "Gemini API exception: ${e.message}", e)
         }
 
         // Step 4: Smart Local AI Fallback Engine
@@ -207,7 +195,11 @@ class AiChatRepository(
 
         var accumulatedText = ""
         try {
-            aiRepository.generateContentStream(promptWithContext).collect { chunk ->
+            aiRepository.streamChat(
+                prompt = promptWithContext,
+                conversationHistory = conversationHistory,
+                focusedContext = focusedContext
+            ).collect { chunk ->
                 accumulatedText += chunk
                 emit(sanitizeAiTextResponse(accumulatedText))
             }

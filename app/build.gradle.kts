@@ -106,7 +106,6 @@ dependencies {
   implementation(libs.androidx.room.runtime)
   implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
-  implementation(libs.firebase.ai)
 
   // Firebase Firestore:
   implementation(libs.firebase.firestore)
