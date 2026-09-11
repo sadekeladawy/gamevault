@@ -2,7 +2,11 @@ package com.example.data.remote.ai
 
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
+import com.example.data.model.ai.ChatMessage
+import com.example.data.model.ai.MessageSender
 import com.example.data.remote.rawg.RawgGameDto
+import com.google.firebase.ai.type.Content
+import com.google.firebase.ai.type.content
 import java.util.Locale
 
 object GameVaultAiContextBuilder {
@@ -90,5 +94,19 @@ CRITICAL COPILOT RULES:
             "Playtime: ${g.playtime ?: 0} hours"
         }
         return "\n\n[RAWG DATABASE METADATA RETRIEVED FOR USER QUERY]:\n$gamesInfo\n[END RAWG METADATA]\n"
+    }
+
+    /**
+     * Converts a list of [ChatMessage] into Firebase AI Logic [Content] objects for multi-turn chat sessions.
+     */
+    fun buildChatHistory(messages: List<ChatMessage>): List<Content> {
+        return messages
+            .filter { !it.isLoading && !it.isError && it.text.isNotBlank() }
+            .map { msg ->
+                val role = if (msg.sender == MessageSender.USER) "user" else "model"
+                content(role) {
+                    text(msg.text)
+                }
+            }
     }
 }

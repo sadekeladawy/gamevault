@@ -9,6 +9,7 @@ import com.example.data.remote.ai.GameVaultAiContextBuilder
 import com.example.data.remote.ai.GameVaultAiRepository
 import com.example.data.remote.rawg.RawgGameDto
 import com.example.data.remote.rawg.RawgRepository
+import com.google.firebase.ai.Chat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -33,6 +34,32 @@ class AiChatRepository(
             .replace(Regex("[⭐★☆✨🌟]"), "")
             .replace(Regex("\\*{3,}"), "") // Remove *** decorative dividers
     }
+
+    /**
+     * Initializes a multi-turn chat session with optional prior conversation history.
+     */
+    fun startChat(conversationHistory: List<ChatMessage> = emptyList()): Chat {
+        val historyContent = GameVaultAiContextBuilder.buildChatHistory(conversationHistory)
+        return aiRepository.startChat(historyContent)
+    }
+
+    /**
+     * Sends a message within an active multi-turn [Chat] session.
+     */
+    suspend fun sendMessage(chatSession: Chat, userText: String): String? {
+        return aiRepository.sendMessage(chatSession, userText)?.let { sanitizeAiTextResponse(it) }
+    }
+
+    /**
+     * Sends a streaming message within an active multi-turn [Chat] session.
+     */
+    fun streamMessage(chatSession: Chat, userText: String): Flow<String> = flow {
+        var accumulated = ""
+        aiRepository.sendMessageStream(chatSession, userText).collect { chunk ->
+            accumulated += chunk
+            emit(sanitizeAiTextResponse(accumulated))
+        }
+    }.flowOn(Dispatchers.IO)
 
     suspend fun processUserMessage(
         userText: String,
