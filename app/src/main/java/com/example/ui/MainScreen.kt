@@ -1157,6 +1157,7 @@ fun ScreenRouter(
 
         NavDestination.FRANCHISE -> {
             val fDetails by viewModel.franchiseDetails.collectAsStateWithLifecycle()
+            val allFranchises by viewModel.allFranchises.collectAsStateWithLifecycle()
             if (fDetails != null) {
                 FranchiseScreen(
                     details = fDetails!!,
@@ -1170,6 +1171,15 @@ fun ScreenRouter(
                         viewModel.navigateTo(NavDestination.AI_CHAT)
                     }
                 )
+            } else if (allFranchises.isNotEmpty()) {
+                val firstFranchise = allFranchises.first()
+                LaunchedEffect(firstFranchise.franchise.name) {
+                    viewModel.openFranchise(firstFranchise.franchise.name)
+                }
+            } else {
+                LaunchedEffect(Unit) {
+                    viewModel.navigateTo(NavDestination.LIBRARY)
+                }
             }
         }
 

@@ -15,14 +15,18 @@ class GameVaultApplication : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
 
-        // Initialize Firebase App & App Check
+        // Initialize Firebase App & App Check safely
         try {
-            FirebaseApp.initializeApp(this)
+            if (FirebaseApp.getApps(this).isEmpty()) {
+                FirebaseApp.initializeApp(this)
+            }
 
-            val appCheck = FirebaseAppCheck.getInstance()
-            appCheck.installAppCheckProviderFactory(
-                DebugAppCheckProviderFactory.getInstance()
-            )
+            if (BuildConfig.DEBUG) {
+                val appCheck = FirebaseAppCheck.getInstance()
+                appCheck.installAppCheckProviderFactory(
+                    DebugAppCheckProviderFactory.getInstance()
+                )
+            }
         } catch (e: Exception) {
             Log.w("GameVaultApplication", "Firebase / App Check initialization warning: ${e.message}")
         }
