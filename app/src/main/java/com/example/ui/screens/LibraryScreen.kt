@@ -1,7 +1,11 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +24,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -62,11 +67,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.FranchiseDetails
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
 import com.example.ui.components.CommonPlatforms
 import com.example.ui.components.GameCard
 import com.example.ui.theme.AccentAmber
+import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
@@ -89,14 +96,78 @@ fun LibraryScreen(
     onSearchChange: (String) -> Unit,
     onStatusChange: (GameStatus?) -> Unit,
     onPlatformChange: (String?) -> Unit,
+    onFranchiseChange: ((String?) -> Unit)? = null,
     onSortChange: (SortOption) -> Unit,
     onToggleShowArchived: (() -> Unit)? = null,
     onGameClick: (Game) -> Unit,
     onToggleFavorite: (Game) -> Unit,
     onAddGame: () -> Unit,
+    selectedViewTab: Int = 0,
+    onViewTabChange: ((Int) -> Unit)? = null,
+    franchisesList: List<FranchiseDetails> = emptyList(),
+    onSelectFranchise: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var isSortMenuOpen by remember { mutableStateOf(false) }
+
+    if (selectedViewTab == 1 && onViewTabChange != null) {
+        Column(modifier = modifier.fillMaxSize()) {
+            Surface(
+                color = DarkSurface,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, DarkCardBorder),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Surface(
+                        color = Color.Transparent,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onViewTabChange(0) }
+                    ) {
+                        Text(
+                            text = "Games (${games.size})",
+                            color = TextSecondary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+
+                    Surface(
+                        color = PrimaryRed,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onViewTabChange(1) }
+                    ) {
+                        Text(
+                            text = "Franchises (${franchisesList.size})",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                }
+            }
+
+            FranchiseListScreen(
+                franchises = franchisesList,
+                onSelectFranchise = { onSelectFranchise?.invoke(it) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+        return
+    }
 
     val totalVaultGames = if (allVaultGames.isNotEmpty()) allVaultGames else games
     val activeGamesCount = totalVaultGames.count { !it.isArchived }
@@ -114,6 +185,57 @@ fun LibraryScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
         modifier = modifier.fillMaxSize()
     ) {
+        // Sub-Navigation Tab Bar: Games | Franchises
+        if (onViewTabChange != null) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Surface(
+                    color = DarkSurface,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, DarkCardBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Surface(
+                            color = PrimaryRed,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onViewTabChange(0) }
+                        ) {
+                            Text(
+                                text = "Games (${games.size})",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+
+                        Surface(
+                            color = Color.Transparent,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onViewTabChange(1) }
+                        ) {
+                            Text(
+                                text = "Franchises (${franchisesList.size})",
+                                color = TextSecondary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // Search and Filters Header
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -485,6 +607,67 @@ fun LibraryScreen(
                                 selectedBorderColor = PrimaryRed
                             )
                         )
+                    }
+                }
+
+                // Franchise Filter Chips
+                val franchises = remember(totalVaultGames) {
+                    totalVaultGames.mapNotNull { it.franchiseName?.takeIf { f -> f.isNotBlank() } }.distinct()
+                }
+                if (franchises.isNotEmpty() && onFranchiseChange != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "FRANCHISE / SERIES",
+                        color = TextMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                    ) {
+                        val isAllFranchises = filters.selectedFranchise == null || filters.selectedFranchise == "All"
+                        FilterChip(
+                            selected = isAllFranchises,
+                            onClick = { onFranchiseChange(null) },
+                            label = { Text("All Series (${franchises.size})", fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = PrimaryRed,
+                                selectedLabelColor = Color.White,
+                                containerColor = DarkCard,
+                                labelColor = TextSecondary
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isAllFranchises,
+                                borderColor = DarkCardBorder,
+                                selectedBorderColor = PrimaryRed
+                            )
+                        )
+                        franchises.forEach { f ->
+                            val isSelected = filters.selectedFranchise.equals(f, ignoreCase = true)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { onFranchiseChange(if (isSelected) null else f) },
+                                label = { Text(f, fontSize = 12.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = PrimaryRed,
+                                    selectedLabelColor = Color.White,
+                                    containerColor = DarkCard,
+                                    labelColor = TextSecondary
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = isSelected,
+                                    borderColor = DarkCardBorder,
+                                    selectedBorderColor = PrimaryRed
+                                )
+                            )
+                        }
                     }
                 }
 

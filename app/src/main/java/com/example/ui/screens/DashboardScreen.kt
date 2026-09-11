@@ -141,14 +141,6 @@ fun DashboardScreen(
             DashboardPlatformChips(onSearchDatabase = onSearchDatabase)
         }
 
-        // AI Gaming Insights Card
-        item(key = "dashboard_ai_insights", contentType = "insights") {
-            DashboardGamingInsightsCard(
-                stats = stats,
-                onNavigate = onNavigate
-            )
-        }
-
         // Popular RAWG Games Horizontal Carousel
         if (popularGames.isNotEmpty()) {
             item(key = "dashboard_popular_games", contentType = "popular_carousel") {
@@ -486,78 +478,6 @@ private fun DashboardPlatformChips(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun DashboardGamingInsightsCard(
-    stats: VaultStats,
-    onNavigate: (NavDestination) -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("dashboard_gaming_insights_card"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCard),
-        border = BorderStroke(1.dp, DarkCardBorder)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Psychology,
-                        contentDescription = null,
-                        tint = PrimaryRed,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Personal Gaming Insights",
-                        color = TextPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                IconButton(
-                    onClick = { onNavigate(NavDestination.AI_CHAT) },
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        Icons.Default.AutoAwesome,
-                        contentDescription = "Ask AI",
-                        tint = PrimaryRed,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            val topGenre = stats.genreDistribution.firstOrNull()?.first ?: "Action RPG"
-            Text(
-                text = "• Favorite Genre: $topGenre (${stats.genreDistribution.firstOrNull()?.second ?: 0} games)",
-                color = TextSecondary,
-                fontSize = 12.sp
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "• Active Backlog: ${stats.backlogCount} games awaiting play",
-                color = TextSecondary,
-                fontSize = 12.sp
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "• Completion Streak: ${stats.completionStreakMonths} months of cleared games",
-                color = TextSecondary,
-                fontSize = 12.sp
-            )
         }
     }
 }

@@ -6,6 +6,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
 import com.example.data.local.SearchHistoryManager
+import com.example.data.model.Franchise
+import com.example.data.model.FranchiseDetails
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
 import com.example.data.model.UserProfile
@@ -44,6 +46,7 @@ enum class NavDestination(val title: String, val iconName: String) {
     GAME_DATABASE("Search", "search"),
     AI_CHAT("AI Assistant", "auto_awesome"),
     LIBRARY("My Games", "sports_esports"),
+    FRANCHISE("Franchise", "collections_bookmark"),
     COMPLETED("Completed", "check_circle"),
     PLAYING("Currently Playing", "play_circle"),
     BACKLOG("Backlog", "menu_book"),
@@ -67,6 +70,7 @@ data class LibraryFilters(
     val selectedPlatform: String? = null,
     val selectedGenre: String? = null,
     val selectedStatus: GameStatus? = null,
+    val selectedFranchise: String? = null,
     val sortOption: SortOption = SortOption.RECENTLY_COMPLETED,
     val showArchived: Boolean = false
 )
@@ -166,6 +170,13 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
     val filteredGames: StateFlow<List<Game>>
 
     val stats: StateFlow<VaultStats>
+
+    private val _selectedFranchiseName = MutableStateFlow<String?>(null)
+    val selectedFranchiseName: StateFlow<String?> = _selectedFranchiseName.asStateFlow()
+
+    val franchiseDetails: StateFlow<FranchiseDetails?>
+
+    val allFranchises: StateFlow<List<FranchiseDetails>>
 
     // --- RAWG Video Games API Integration ---
     private var rawgRepository: RawgRepository = RawgRepository()
@@ -319,7 +330,41 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
             initialValue = VaultStats()
         )
 
+        franchiseDetails = combine(allGames, _selectedFranchiseName) { games, fName ->
+            if (fName.isNullOrBlank()) null
+            else {
+                val matchingGames = games.filter { it.franchiseName.equals(fName, ignoreCase = true) }
+                val bannerImage = matchingGames.firstOrNull { it.coverUrl.isNotBlank() }?.coverUrl ?: ""
+                FranchiseDetails(
+                    franchise = Franchise(name = fName, imageUrl = bannerImage),
+                    games = matchingGames
+                )
+            }
+        }.flowOn(Dispatchers.Default).stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+        allFranchises = allGames.map { games ->
+            val groups = games.filter { !it.franchiseName.isNullOrBlank() }
+                .groupBy { it.franchiseName!!.trim() }
+
+            groups.map { (fName, fGames) ->
+                val bannerImage = fGames.firstOrNull { it.coverUrl.isNotBlank() }?.coverUrl ?: ""
+                FranchiseDetails(
+                    franchise = Franchise(name = fName, imageUrl = bannerImage),
+                    games = fGames
+                )
+            }.sortedByDescending { it.totalGames }
+        }.flowOn(Dispatchers.Default).stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
         loadPopularRawgGames()
+        processUnprocessedFranchisesAsync()
     }
 
     /**
@@ -665,12 +710,16 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         playtimeHours: Double,
         rating: Int,
         notes: String,
-        isFavorite: Boolean
+        isFavorite: Boolean,
+        franchiseName: String? = null,
+        seriesOrder: Int? = null
     ) {
         val user = currentUser.value
         val uid = user?.uid ?: ""
         viewModelScope.launch {
             if (id == 0L) {
+                val autoFranchise = franchiseName ?: extractFranchiseName(title)
+                val autoOrder = seriesOrder ?: extractSeriesOrder(title)
                 val newGame = Game(
                     title = title,
                     coverUrl = coverUrl,
@@ -685,16 +734,19 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                     rating = rating,
                     notes = notes,
                     isFavorite = isFavorite,
-                    userId = uid
+                    userId = uid,
+                    franchiseName = autoFranchise,
+                    seriesOrder = autoOrder
                 )
                 val newId = repository.insertGame(newGame)
                 val savedGame = newGame.copy(id = newId)
                 if (uid.isNotBlank()) {
                     firestoreRepository.saveUserGame(uid, savedGame)
                 }
-                _snackbarMessage.emit("Added \"$title\" to your Vault")
             } else {
                 val existingGame = allGames.value.find { it.id == id }
+                val autoFranchise = franchiseName ?: existingGame?.franchiseName ?: extractFranchiseName(title)
+                val autoOrder = seriesOrder ?: existingGame?.seriesOrder ?: extractSeriesOrder(title)
                 val updatedGame = Game(
                     id = id,
                     title = title,
@@ -716,7 +768,9 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                     isFavorite = isFavorite,
                     isArchived = existingGame?.isArchived ?: false,
                     createdAt = existingGame?.createdAt ?: System.currentTimeMillis(),
-                    userId = uid
+                    userId = uid,
+                    franchiseName = autoFranchise,
+                    seriesOrder = autoOrder
                 )
                 repository.updateGame(updatedGame)
                 if (uid.isNotBlank()) {
@@ -1097,6 +1151,22 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         searchHistoryManager.clearSearchHistory()
     }
 
+    fun openFranchise(franchiseName: String) {
+        _selectedGameForDetails.value = null
+        _selectedRawgGameForDetails.value = null
+        _selectedFranchiseName.value = franchiseName
+        _currentDestination.value = NavDestination.FRANCHISE
+    }
+
+    fun closeFranchise() {
+        _selectedFranchiseName.value = null
+        _currentDestination.value = NavDestination.LIBRARY
+    }
+
+    fun setFranchiseFilter(franchise: String?) {
+        _libraryFilters.value = _libraryFilters.value.copy(selectedFranchise = franchise)
+    }
+
     fun addRawgGameToVault(rawgGame: RawgGameDto, initialStatus: GameStatus = GameStatus.BACKLOG) {
         val user = currentUser.value
         val uid = user?.uid ?: ""
@@ -1115,6 +1185,17 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
         }
 
         viewModelScope.launch {
+            var detectedFranchiseName: String? = extractFranchiseName(rawgGame.name)
+            var detectedSeriesOrder: Int? = extractSeriesOrder(rawgGame.name)
+
+            if (rawgGame.id > 0) {
+                val seriesRes = rawgRepository.getGameSeries(rawgGame.id.toString())
+                val seriesList = seriesRes.getOrDefault(emptyList())
+                if (seriesList.isNotEmpty() && detectedFranchiseName.isNullOrBlank()) {
+                    detectedFranchiseName = extractFranchiseName(seriesList.first().name)
+                }
+            }
+
             val rawgTag = if (rawgGame.id > 0) "[RAWG_ID:${rawgGame.id}]\n" else ""
             val rawNotes = rawgGame.descriptionRaw ?: rawgGame.description ?: "Added from RAWG / GameVault AI"
             val newGame = Game(
@@ -1131,7 +1212,9 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
                 developer = rawgGame.developers?.firstOrNull()?.name ?: "",
                 publisher = rawgGame.publishers?.firstOrNull()?.name ?: "",
                 notes = rawgTag + rawNotes,
-                userId = uid
+                userId = uid,
+                franchiseName = detectedFranchiseName,
+                seriesOrder = detectedSeriesOrder
             )
 
             val insertedId = repository.insertGame(newGame)
@@ -1145,8 +1228,100 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
             closeGameDetails()
             _libraryFilters.value = LibraryFilters() // Reset filters so newly added game is visible at top
             _currentDestination.value = NavDestination.LIBRARY
-            _snackbarMessage.emit("Added \"${rawgGame.name}\" to your Vault!")
         }
+    }
+
+    private fun processUnprocessedFranchisesAsync() {
+        viewModelScope.launch(Dispatchers.IO) {
+            delay(2000)
+
+            val gamesToProcess = allGames.value.filter { game ->
+                game.franchiseName.isNullOrBlank() && game.notes.contains("[RAWG_ID:")
+            }
+
+            if (gamesToProcess.isEmpty()) return@launch
+
+            val prefs = getApplication<Application>().getSharedPreferences("gamevault_franchise_prefs", Application.MODE_PRIVATE)
+
+            for (game in gamesToProcess.take(5)) {
+                val prefKey = "processed_franchise_${game.id}"
+                if (prefs.getBoolean(prefKey, false)) continue
+
+                val rawgIdMatch = Regex("\\[RAWG_ID:(\\d+)\\]").find(game.notes)
+                val rawgId = rawgIdMatch?.groupValues?.getOrNull(1)
+
+                if (!rawgId.isNullOrBlank()) {
+                    val seriesRes = rawgRepository.getGameSeries(rawgId)
+                    val seriesList = seriesRes.getOrDefault(emptyList())
+
+                    if (seriesList.isNotEmpty()) {
+                        val firstSeriesGame = seriesList.first()
+                        val detectedName = extractFranchiseName(firstSeriesGame.name) ?: extractFranchiseName(game.title)
+                        if (!detectedName.isNullOrBlank()) {
+                            val updated = game.copy(
+                                franchiseName = detectedName,
+                                seriesOrder = extractSeriesOrder(game.title)
+                            )
+                            repository.updateGame(updated)
+                            val user = currentUser.value
+                            if (user != null) {
+                                firestoreRepository.saveUserGame(user.uid, updated)
+                            }
+                        }
+                    }
+                }
+
+                prefs.edit().putBoolean(prefKey, true).apply()
+            }
+        }
+    }
+
+    private fun extractFranchiseName(gameTitle: String): String? {
+        val title = gameTitle.trim()
+        val romanNumerals = mapOf("I" to 1, "II" to 2, "III" to 3, "IV" to 4, "V" to 5, "VI" to 6, "VII" to 7, "VIII" to 8, "IX" to 9, "X" to 10)
+
+        val mainTitle = title.split(":").firstOrNull()?.trim() ?: title
+
+        val numRegex = Regex("^(.*?)\\s+(\\d+)\$")
+        val numMatch = numRegex.find(mainTitle)
+        if (numMatch != null) {
+            val baseName = numMatch.groupValues[1].trim()
+            if (baseName.length >= 3) return baseName
+        }
+
+        val words = mainTitle.split(" ")
+        if (words.size >= 2) {
+            val lastWord = words.last().uppercase()
+            if (romanNumerals.containsKey(lastWord)) {
+                val baseName = words.dropLast(1).joinToString(" ").trim()
+                if (baseName.length >= 3) return baseName
+            }
+        }
+
+        return null
+    }
+
+    private fun extractSeriesOrder(gameTitle: String): Int? {
+        val title = gameTitle.trim()
+        val romanNumerals = mapOf("I" to 1, "II" to 2, "III" to 3, "IV" to 4, "V" to 5, "VI" to 6, "VII" to 7, "VIII" to 8, "IX" to 9, "X" to 10)
+
+        val mainTitle = title.split(":").firstOrNull()?.trim() ?: title
+
+        val numRegex = Regex("^(.*?)\\s+(\\d+)\$")
+        val numMatch = numRegex.find(mainTitle)
+        if (numMatch != null) {
+            return numMatch.groupValues[2].toIntOrNull()
+        }
+
+        val words = mainTitle.split(" ")
+        if (words.size >= 2) {
+            val lastWord = words.last().uppercase()
+            if (romanNumerals.containsKey(lastWord)) {
+                return romanNumerals[lastWord]
+            }
+        }
+
+        return null
     }
 
     // --- RAWG Search Methods ---

@@ -214,6 +214,9 @@ class FirestoreRepository(private val context: Context) {
                 "isArchived" to game.isArchived,
                 "createdAt" to game.createdAt,
                 "userId" to uid,
+                "franchiseId" to game.franchiseId,
+                "franchiseName" to game.franchiseName,
+                "seriesOrder" to game.seriesOrder,
                 "updatedAt" to System.currentTimeMillis()
             )
             docRef.set(gameMap, SetOptions.merge()).awaitTask()
@@ -318,6 +321,9 @@ class FirestoreRepository(private val context: Context) {
                     "isFavorite" to game.isFavorite,
                     "createdAt" to game.createdAt,
                     "userId" to uid,
+                    "franchiseId" to game.franchiseId,
+                    "franchiseName" to game.franchiseName,
+                    "seriesOrder" to game.seriesOrder,
                     "syncedAt" to System.currentTimeMillis()
                 )
                 batch.set(docRef, gameMap, SetOptions.merge())
@@ -375,7 +381,10 @@ class FirestoreRepository(private val context: Context) {
                     isArchived = data["isArchived"] as? Boolean ?: false,
                     createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
                     updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
-                    userId = uid
+                    userId = uid,
+                    franchiseId = (data["franchiseId"] as? Number)?.toLong(),
+                    franchiseName = data["franchiseName"] as? String,
+                    seriesOrder = (data["seriesOrder"] as? Number)?.toInt()
                 )
                 list.add(game)
             }

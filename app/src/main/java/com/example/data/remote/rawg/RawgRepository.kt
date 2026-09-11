@@ -310,6 +310,50 @@ class RawgRepository(
         }
     }
 
+    suspend fun getGameSeries(gameIdOrSlug: String): Result<List<RawgGameDto>> = withContext(Dispatchers.IO) {
+        if (gameIdOrSlug.isBlank()) return@withContext Result.success(emptyList())
+        val cacheKey = "series_$gameIdOrSlug"
+
+        if (rawgCacheDao != null) {
+            try {
+                val cached = rawgCacheDao.getCache(cacheKey)
+                if (cached != null && (System.currentTimeMillis() - cached.cachedAt) < CACHE_TTL_MS) {
+                    val adapter = moshi.adapter(RawgSearchResponse::class.java)
+                    val response = adapter.fromJson(cached.jsonPayload)
+                    if (response?.results != null) {
+                        return@withContext Result.success(response.results)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed reading series cache: ${e.message}")
+            }
+        }
+
+        try {
+            Log.d(TAG, "Fetching game series for RAWG ID/slug: $gameIdOrSlug")
+            val response = apiService.getGameSeries(
+                gameId = gameIdOrSlug,
+                apiKey = apiKey
+            )
+            val list = response.results ?: emptyList()
+
+            if (rawgCacheDao != null && list.isNotEmpty()) {
+                try {
+                    val adapter = moshi.adapter(RawgSearchResponse::class.java)
+                    val jsonPayload = adapter.toJson(response)
+                    rawgCacheDao.insertCache(RawgCacheEntity(cacheKey = cacheKey, jsonPayload = jsonPayload))
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed caching series: ${e.message}")
+                }
+            }
+
+            Result.success(list)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to fetch game series for $gameIdOrSlug: ${e.message}")
+            Result.success(emptyList())
+        }
+    }
+
     suspend fun getPlatforms(): Result<List<RawgPlatformDto>> = withContext(Dispatchers.IO) {
         try {
             val response = apiService.getPlatforms(apiKey = apiKey)

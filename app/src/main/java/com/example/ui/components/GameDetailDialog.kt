@@ -128,6 +128,7 @@ fun GameDetailDialog(
     onSaveNotes: ((String) -> Unit)? = null,
     onAddToVault: ((RawgGameDto, GameStatus) -> Unit)? = null,
     onSelectSimilarGame: ((RawgGameDto) -> Unit)? = null,
+    onViewFranchise: ((String) -> Unit)? = null,
     isInVault: Boolean = false,
     vaultGameStatus: GameStatus? = null
 ) {
@@ -834,6 +835,54 @@ fun GameDetailDialog(
                                             fontSize = 12.sp,
                                             fontStyle = FontStyle.Italic
                                         )
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    // Franchise / Series Card
+                    val franchiseName = game?.franchiseName
+                        ?: rawgGameDto?.let { dto ->
+                            val title = dto.name
+                            val mainTitle = title.split(":").firstOrNull()?.trim() ?: title
+                            val numRegex = Regex("^(.*?)\\s+(\\d+)\$")
+                            val match = numRegex.find(mainTitle)
+                            if (match != null && match.groupValues[1].trim().length >= 3) {
+                                match.groupValues[1].trim()
+                            } else null
+                        }
+
+                    if (!franchiseName.isNullOrBlank()) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = DarkCard),
+                            border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("FRANCHISE / SERIES", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(franchiseName, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                }
+                                if (onViewFranchise != null) {
+                                    Button(
+                                        onClick = {
+                                            onDismiss()
+                                            onViewFranchise(franchiseName)
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
+                                    ) {
+                                        Text("View Series", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }

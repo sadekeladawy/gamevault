@@ -118,7 +118,9 @@ fun AddEditGameDialog(
         playtimeHours: Double,
         rating: Int,
         notes: String,
-        isFavorite: Boolean
+        isFavorite: Boolean,
+        franchiseName: String?,
+        seriesOrder: Int?
     ) -> Unit
 ) {
     val isEditing = game != null
@@ -138,6 +140,8 @@ fun AddEditGameDialog(
     var rating by remember { mutableIntStateOf(game?.rating ?: 0) }
     var notes by remember { mutableStateOf(game?.notes ?: "") }
     var isFavorite by remember { mutableStateOf(game?.isFavorite ?: false) }
+    var franchiseName by remember { mutableStateOf(game?.franchiseName ?: "") }
+    var seriesOrderStr by remember { mutableStateOf(game?.seriesOrder?.toString() ?: "") }
 
     // Live autocomplete search states
     var suggestions by remember { mutableStateOf<List<RawgGameDto>>(emptyList()) }
@@ -936,6 +940,44 @@ fun AddEditGameDialog(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Franchise / Series Assignment
+                    Text(
+                        text = "FRANCHISE / SERIES (OPTIONAL)",
+                        color = TextMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = franchiseName,
+                            onValueChange = { franchiseName = it },
+                            placeholder = { Text("e.g. The Witcher, Resident Evil", color = TextMuted) },
+                            singleLine = true,
+                            colors = textFieldColors,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("input_franchise_name")
+                        )
+                        OutlinedTextField(
+                            value = seriesOrderStr,
+                            onValueChange = { seriesOrderStr = it },
+                            placeholder = { Text("Order #", color = TextMuted) },
+                            singleLine = true,
+                            colors = textFieldColors,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .width(90.dp)
+                                .testTag("input_series_order")
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     // Personal Notes
                     Text(
                         text = "NOTES & THOUGHTS",
@@ -982,6 +1024,7 @@ fun AddEditGameDialog(
                                 return@Button
                             }
                             val relYear = releaseYearStr.toIntOrNull() ?: Calendar.getInstance().get(Calendar.YEAR)
+                            val sOrder = seriesOrderStr.toIntOrNull()
                             onSave(
                                 game?.id ?: 0L,
                                 title.trim(),
@@ -994,7 +1037,9 @@ fun AddEditGameDialog(
                                 playtimeHours,
                                 rating,
                                 notes.trim(),
-                                isFavorite
+                                isFavorite,
+                                franchiseName.trim().takeIf { it.isNotBlank() },
+                                sOrder
                             )
                         },
                         modifier = Modifier

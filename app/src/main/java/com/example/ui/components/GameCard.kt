@@ -120,8 +120,12 @@ fun GameCard(
 
     val imageRequest = remember(game.coverUrl, context) {
         if (game.coverUrl.isNotBlank()) {
+            val processedUrl = if (game.coverUrl.contains("/media/games/")) {
+                game.coverUrl.replace("/media/games/", "/media/crop/600/400/games/")
+            } else game.coverUrl
+
             ImageRequest.Builder(context)
-                .data(game.coverUrl)
+                .data(processedUrl)
                 .size(360, 480)
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)

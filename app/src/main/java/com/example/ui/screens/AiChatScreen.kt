@@ -256,14 +256,14 @@ private fun AiChatHeader(onClearChat: () -> Unit) {
 
                 Column {
                     Text(
-                        text = "GameVault AI",
+                        text = "GameVault AI Copilot",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
                         )
                     )
                     Text(
-                        text = "Intelligent Gaming Assistant & Backlog Advisor",
+                        text = "Personalized Backlog Advisor & Franchise Guide",
                         style = MaterialTheme.typography.bodySmall.copy(color = TextMuted),
                         fontSize = 11.sp
                     )
@@ -301,7 +301,7 @@ private fun SuggestedPromptsSection(onPromptClick: (String) -> Unit) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Try Asking GameVault AI:",
+                    text = "Copilot Decision Prompts:",
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
@@ -312,12 +312,12 @@ private fun SuggestedPromptsSection(onPromptClick: (String) -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
 
             val prompts = listOf(
-                "What should I play from my backlog tonight?",
-                "Recommend 5 RPG games released after 2020",
-                "What games are similar to Elden Ring?",
-                "Best Sci-Fi games on PC rated above 4.0",
-                "Tell me everything about Cyberpunk 2077",
-                "Compare Witcher 3 and Skyrim"
+                "What should I play next from my backlog?",
+                "Which franchise / series should I continue?",
+                "Recommend a game for a 2-hour session",
+                "Show my highest-rated games in GameVault",
+                "Recommend top 5 RPG games on PC",
+                "Analyze my gaming habits and backlog"
             )
 
             prompts.forEach { prompt ->

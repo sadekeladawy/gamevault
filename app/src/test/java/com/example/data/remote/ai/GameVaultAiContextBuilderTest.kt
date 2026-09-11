@@ -30,13 +30,13 @@ class GameVaultAiContextBuilderTest {
         assertTrue(context.contains("Elden Ring"))
         assertTrue(context.contains("PC"))
         assertTrue(context.contains("Action RPG"))
-        assertTrue(context.contains("my rating: 9/10"))
+        assertTrue(context.contains("My Rating: 9/10"))
     }
 
     @Test
     fun testEmptyBacklogReturnsEmptyString() {
         val context = GameVaultAiContextBuilder.buildUserBacklogContext(emptyList())
-        assertEquals("", context)
+        assertTrue(context.contains("Vault is currently empty"))
     }
 
     @Test

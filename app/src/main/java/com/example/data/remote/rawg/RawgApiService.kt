@@ -68,6 +68,17 @@ interface RawgApiService {
     ): RawgMovieResponse
 
     /**
+     * Fetch games belonging to the same series as a given game ID or slug.
+     * GET https://api.rawg.io/api/games/{id}/game-series?key=YOUR_API_KEY
+     */
+    @GET("api/games/{id}/game-series")
+    suspend fun getGameSeries(
+        @Path("id") gameId: String,
+        @Query("key") apiKey: String,
+        @Query("page_size") pageSize: Int = 20
+    ): RawgSearchResponse
+
+    /**
      * Fetch list of available genres in RAWG.
      */
     @GET("api/genres")

@@ -41,7 +41,10 @@ data class Game(
     val isArchived: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
-    val userId: String = ""
+    val userId: String = "",
+    val franchiseId: Long? = null,
+    val franchiseName: String? = null,
+    val seriesOrder: Int? = null
 )
 
 class Converters {

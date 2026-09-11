@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
@@ -76,6 +77,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -103,6 +105,7 @@ import com.example.ui.components.UserProfileDialog
 import com.example.ui.screens.AiChatScreen
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.DashboardScreen
+import com.example.ui.screens.FranchiseScreen
 import com.example.ui.screens.GameDatabaseScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.SettingsScreen
@@ -127,6 +130,7 @@ fun getDestinationIcon(dest: NavDestination): ImageVector {
         NavDestination.GAME_DATABASE -> Icons.Outlined.Search
         NavDestination.AI_CHAT -> Icons.Filled.AutoAwesome
         NavDestination.LIBRARY -> Icons.Filled.SportsEsports
+        NavDestination.FRANCHISE -> Icons.Filled.Folder
         NavDestination.COMPLETED -> Icons.Filled.CheckCircle
         NavDestination.PLAYING -> Icons.Filled.PlayCircle
         NavDestination.BACKLOG -> Icons.Filled.MenuBook
@@ -766,7 +770,6 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                                     val bottomNavItems = listOf(
                                         NavDestination.DASHBOARD,
                                         NavDestination.GAME_DATABASE,
-                                        NavDestination.AI_CHAT,
                                         NavDestination.LIBRARY,
                                         NavDestination.AUTH
                                     )
@@ -805,7 +808,7 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                         }
                     },
                     floatingActionButton = {
-                        if (currentDestination != NavDestination.AI_CHAT) {
+                        if (currentDestination == NavDestination.DASHBOARD || currentDestination == NavDestination.LIBRARY) {
                             FloatingActionButton(
                                 onClick = { viewModel.openAddGame() },
                                 containerColor = PrimaryRed,
@@ -898,16 +901,19 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                 onToggleFavorite = { viewModel.toggleFavorite(game) },
                 onArchiveToggle = { viewModel.toggleArchiveGame(it) },
                 onStatusChange = { newStatus -> viewModel.updateGameStatus(game, newStatus) },
-                onSaveNotes = { newNotes -> viewModel.updateGameNotes(game, newNotes) }
+                onSaveNotes = { newNotes -> viewModel.updateGameNotes(game, newNotes) },
+                onViewFranchise = { fName -> viewModel.openFranchise(fName) }
             )
         }
 
         selectedRawgGameForDetails?.let { rawgDto ->
             GameDetailDialog(
                 rawgGameDto = rawgDto,
+                game = viewModel.getVaultGame(rawgDto.name),
                 onDismiss = { viewModel.closeRawgGameDetails() },
                 onAddToVault = { dto, status -> viewModel.addRawgGameToVault(dto, status) },
                 onSelectSimilarGame = { viewModel.openRawgGameDetails(it) },
+                onViewFranchise = { fName -> viewModel.openFranchise(fName) },
                 isInVault = viewModel.isGameInVault(rawgDto.name),
                 vaultGameStatus = viewModel.getVaultGame(rawgDto.name)?.status
             )
@@ -926,8 +932,8 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                 game = gameToEdit,
                 onDismiss = { viewModel.closeAddEdit() },
                 onSearchRawg = { query -> viewModel.searchRawgAutocomplete(query) },
-                onSave = { id, title, coverUrl, platform, genre, relYear, status, compDate, hours, rating, notes, fav ->
-                    viewModel.saveGame(id, title, coverUrl, platform, genre, relYear, status, compDate, hours, rating, notes, fav)
+                onSave = { id, title, coverUrl, platform, genre, relYear, status, compDate, hours, rating, notes, fav, fName, sOrder ->
+                    viewModel.saveGame(id, title, coverUrl, platform, genre, relYear, status, compDate, hours, rating, notes, fav, fName, sOrder)
                 }
             )
         }
@@ -1105,6 +1111,8 @@ fun ScreenRouter(
         }
 
         NavDestination.LIBRARY -> {
+            var selectedTab by remember { mutableIntStateOf(0) }
+            val allFranchisesList by viewModel.allFranchises.collectAsStateWithLifecycle()
             LibraryScreen(
                 title = "All Games",
                 games = filteredGames,
@@ -1112,15 +1120,32 @@ fun ScreenRouter(
                 filters = filters,
                 showStatusFilter = true,
                 showArchiveToggle = true,
+                selectedViewTab = selectedTab,
+                onViewTabChange = { selectedTab = it },
+                franchisesList = allFranchisesList,
+                onSelectFranchise = { fName -> viewModel.openFranchise(fName) },
                 onSearchChange = { viewModel.setSearchQuery(it) },
                 onStatusChange = { viewModel.setStatusFilter(it) },
                 onPlatformChange = { viewModel.setPlatformFilter(it) },
+                onFranchiseChange = { viewModel.setFranchiseFilter(it) },
                 onSortChange = { viewModel.setSortOption(it) },
                 onToggleShowArchived = { viewModel.toggleShowArchived() },
                 onGameClick = { viewModel.openGameDetails(it) },
                 onToggleFavorite = { viewModel.toggleFavorite(it) },
                 onAddGame = { viewModel.openAddGame() }
             )
+        }
+
+        NavDestination.FRANCHISE -> {
+            val fDetails by viewModel.franchiseDetails.collectAsStateWithLifecycle()
+            if (fDetails != null) {
+                FranchiseScreen(
+                    details = fDetails!!,
+                    onBack = { viewModel.closeFranchise() },
+                    onGameClick = { viewModel.openGameDetails(it) },
+                    onStartSession = { viewModel.startGamingSession(it) }
+                )
+            }
         }
 
         NavDestination.COMPLETED -> {

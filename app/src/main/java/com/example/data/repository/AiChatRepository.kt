@@ -283,6 +283,54 @@ class AiChatRepository(
     ): String {
         val lower = userText.lowercase()
 
+        // Handle Franchise / Series queries
+        if (lower.contains("franchise") || lower.contains("series")) {
+            val franchises = userBacklog.mapNotNull { it.franchiseName?.takeIf { f -> f.isNotBlank() } }.distinct()
+            if (franchises.isNotEmpty()) {
+                val sb = StringBuilder()
+                sb.append("📚 **Franchise Progress in Your GameVault**\n\n")
+                franchises.forEach { fName ->
+                    val fGames = userBacklog.filter { it.franchiseName.equals(fName, ignoreCase = true) }
+                    val completed = fGames.count { it.status == GameStatus.COMPLETED }
+                    val nextGame = fGames.sortedBy { it.seriesOrder ?: Int.MAX_VALUE }.firstOrNull { it.status != GameStatus.COMPLETED }
+                    sb.append("• **$fName**: $completed / ${fGames.size} completed\n")
+                    if (nextGame != null) {
+                        sb.append("  ➜ *Recommended Next:* ${nextGame.title} (${nextGame.status.displayName})\n")
+                    }
+                    sb.append("\n")
+                }
+                return sb.toString()
+            }
+        }
+
+        // Handle Rating queries
+        if (lower.contains("highest") || lower.contains("top rated") || lower.contains("best rated")) {
+            val topRated = userBacklog.filter { it.rating > 0 }.sortedByDescending { it.rating }.take(5)
+            if (topRated.isNotEmpty()) {
+                val sb = StringBuilder()
+                sb.append("🏆 **Your Highest-Rated Games in GameVault**\n\n")
+                topRated.forEachIndexed { idx, game ->
+                    sb.append("${idx + 1}. **${game.title}** - My Rating: ${game.rating}/10 (${game.platform}, ${game.genre})\n")
+                }
+                return sb.toString()
+            }
+        }
+
+        // Handle Duration / Short queries
+        if (lower.contains("2 hours") || lower.contains("3 hours") || lower.contains("short") || lower.contains("quick")) {
+            val shortPicks = userBacklog.filter { it.status == GameStatus.BACKLOG || it.status == GameStatus.CURRENTLY_PLAYING }
+                .sortedBy { it.playtimeHours }.take(3)
+            if (shortPicks.isNotEmpty()) {
+                val sb = StringBuilder()
+                sb.append("⏱️ **Quick Session Recommendations**\n\n")
+                shortPicks.forEachIndexed { idx, game ->
+                    sb.append("${idx + 1}. **${game.title}** (${game.platform})\n")
+                    sb.append("   • **Current Playtime:** ${game.playtimeHours}h | **Status:** ${game.status.displayName}\n\n")
+                }
+                return sb.toString()
+            }
+        }
+
         if (lower.contains("backlog") || lower.contains("what should i play") || lower.contains("play tonight")) {
             if (userBacklog.isNotEmpty()) {
                 val sb = StringBuilder()
