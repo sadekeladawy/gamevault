@@ -97,6 +97,7 @@ import com.example.data.remote.rawg.RawgGameDto
 import com.example.data.remote.rawg.RawgMovieDto
 import com.example.data.remote.rawg.RawgRepository
 import com.example.data.remote.rawg.RawgScreenshotDto
+import com.example.ui.components.AskAiButton
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
 import com.example.ui.theme.AccentRose
@@ -129,6 +130,7 @@ fun GameDetailDialog(
     onAddToVault: ((RawgGameDto, GameStatus) -> Unit)? = null,
     onSelectSimilarGame: ((RawgGameDto) -> Unit)? = null,
     onViewFranchise: ((String) -> Unit)? = null,
+    onAskAi: ((Game?, RawgGameDto?) -> Unit)? = null,
     isInVault: Boolean = false,
     vaultGameStatus: GameStatus? = null
 ) {
@@ -311,39 +313,52 @@ fun GameDetailDialog(
                         )
                     }
 
-                    // Favorite button top-right (if in Vault)
-                    if (game != null && onToggleFavorite != null) {
-                        val favScale by animateFloatAsState(
-                            targetValue = if (game.isFavorite) 1.25f else 1.0f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMedium
-                            ),
-                            label = "detail_fav_scale"
-                        )
-                        val favTint by animateColorAsState(
-                            targetValue = if (game.isFavorite) AccentRose else Color.White,
-                            animationSpec = tween(durationMillis = 200),
-                            label = "detail_fav_tint"
-                        )
-
-                        IconButton(
-                            onClick = onToggleFavorite,
-                            modifier = Modifier
-                                .padding(14.dp)
-                                .align(Alignment.TopEnd)
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.6f))
-                        ) {
-                            Icon(
-                                imageVector = if (game.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = "Favorite",
-                                tint = favTint,
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .graphicsLayer(scaleX = favScale, scaleY = favScale)
+                    // Actions top-right (Ask AI and Favorite)
+                    Row(
+                        modifier = Modifier
+                            .padding(14.dp)
+                            .align(Alignment.TopEnd),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (onAskAi != null) {
+                            AskAiButton(
+                                onClick = { onAskAi(game, fullRawgDetails ?: rawgGameDto) },
+                                iconOnly = true
                             )
+                        }
+
+                        if (game != null && onToggleFavorite != null) {
+                            val favScale by animateFloatAsState(
+                                targetValue = if (game.isFavorite) 1.25f else 1.0f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                ),
+                                label = "detail_fav_scale"
+                            )
+                            val favTint by animateColorAsState(
+                                targetValue = if (game.isFavorite) AccentRose else Color.White,
+                                animationSpec = tween(durationMillis = 200),
+                                label = "detail_fav_tint"
+                            )
+
+                            IconButton(
+                                onClick = onToggleFavorite,
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.6f))
+                            ) {
+                                Icon(
+                                    imageVector = if (game.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                    contentDescription = "Favorite",
+                                    tint = favTint,
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .graphicsLayer(scaleX = favScale, scaleY = favScale)
+                                )
+                            }
                         }
                     }
 
@@ -550,6 +565,15 @@ fun GameDetailDialog(
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
+                    }
+
+                    if (onAskAi != null) {
+                        AskAiButton(
+                            onClick = { onAskAi(game, fullRawgDetails ?: rawgGameDto) },
+                            label = "Ask AI Copilot about $title",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
 
                     // Stats Grid Cards (Ratings, Playtime, Metacritic)

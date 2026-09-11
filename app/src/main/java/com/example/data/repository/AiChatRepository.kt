@@ -3,6 +3,7 @@ package com.example.data.repository
 import android.util.Log
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
+import com.example.data.model.ai.AiQuickAction
 import com.example.data.model.ai.ChatMessage
 import com.example.data.model.ai.MessageSender
 import com.example.data.remote.ai.GameVaultAiContextBuilder
@@ -137,7 +138,9 @@ class AiChatRepository(
         userText: String,
         conversationHistory: List<ChatMessage> = emptyList(),
         userBacklog: List<Game> = emptyList(),
-        onRawgMetaDataFetched: (List<RawgGameDto>, String?) -> Unit
+        focusedContext: String? = null,
+        onRawgMetaDataFetched: (List<RawgGameDto>, String?) -> Unit,
+        onVaultRecommendationsFound: ((List<Game>, String?, List<AiQuickAction>) -> Unit)? = null
     ): Flow<String> = flow {
         val trimmed = userText.trim()
         if (trimmed.isEmpty()) {
@@ -146,6 +149,38 @@ class AiChatRepository(
         }
 
         val lower = trimmed.lowercase()
+
+        // Check if user is asking about specific franchise, backlog games, or recommendations
+        if (onVaultRecommendationsFound != null) {
+            val matchingFranchise = userBacklog
+                .mapNotNull { it.franchiseName?.takeIf { f -> f.isNotBlank() } }
+                .distinct()
+                .firstOrNull { fName -> lower.contains(fName.lowercase()) }
+
+            val matchingGames = if (matchingFranchise != null) {
+                userBacklog.filter { it.franchiseName.equals(matchingFranchise, ignoreCase = true) }
+            } else {
+                userBacklog.filter { game ->
+                    lower.contains(game.title.lowercase()) ||
+                    (lower.contains(game.genre.lowercase()) && game.status == GameStatus.BACKLOG)
+                }.take(3)
+            }
+
+            val actions = mutableListOf<AiQuickAction>()
+            if (matchingFranchise != null) {
+                actions.add(AiQuickAction.ViewFranchise(matchingFranchise))
+            }
+            matchingGames.firstOrNull()?.let { g ->
+                actions.add(AiQuickAction.ViewGame(g))
+                if (g.status != GameStatus.CURRENTLY_PLAYING) {
+                    actions.add(AiQuickAction.StartPlaying(g))
+                }
+            }
+
+            if (matchingGames.isNotEmpty() || matchingFranchise != null || actions.isNotEmpty()) {
+                onVaultRecommendationsFound(matchingGames, matchingFranchise, actions)
+            }
+        }
         val isBacklogQuery = lower.contains("backlog") || lower.contains("what should i play") || lower.contains("play tonight") || lower.contains("choose from my games")
 
         val intent = extractSearchIntent(trimmed)
@@ -168,7 +203,7 @@ class AiChatRepository(
             }
         }
 
-        val promptWithContext = buildPromptWithContext(trimmed, conversationHistory, rawgGames, userBacklog)
+        val promptWithContext = buildPromptWithContext(trimmed, conversationHistory, rawgGames, userBacklog, focusedContext)
 
         var accumulatedText = ""
         try {
@@ -189,9 +224,14 @@ class AiChatRepository(
         userText: String,
         history: List<ChatMessage>,
         rawgGames: List<RawgGameDto>,
-        userBacklog: List<Game>
+        userBacklog: List<Game>,
+        focusedContext: String? = null
     ): String {
         val sb = StringBuilder()
+
+        if (!focusedContext.isNullOrBlank()) {
+            sb.append(focusedContext).append("\n\n")
+        }
 
         // Include user backlog context if relevant
         val backlogContext = GameVaultAiContextBuilder.buildUserBacklogContext(userBacklog)

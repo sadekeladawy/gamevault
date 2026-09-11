@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.FranchiseDetails
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
+import com.example.ui.components.AskAiButton
 import com.example.ui.components.CommonPlatforms
 import com.example.ui.components.GameCard
 import com.example.ui.theme.AccentAmber
@@ -106,6 +107,7 @@ fun LibraryScreen(
     onViewTabChange: ((Int) -> Unit)? = null,
     franchisesList: List<FranchiseDetails> = emptyList(),
     onSelectFranchise: ((String) -> Unit)? = null,
+    onAskAi: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var isSortMenuOpen by remember { mutableStateOf(false) }
@@ -263,51 +265,63 @@ fun LibraryScreen(
                         )
                     }
 
-                    // Sort Button & Menu
-                    Box {
-                        OutlinedButton(
-                            onClick = { isSortMenuOpen = true },
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkCard),
-                            modifier = Modifier.testTag("sort_menu_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Sort,
-                                contentDescription = null,
-                                tint = PrimaryRed,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = filters.sortOption.displayName,
-                                color = TextPrimary,
-                                fontSize = 12.sp,
-                                maxLines = 1
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (onAskAi != null) {
+                            AskAiButton(
+                                onClick = onAskAi,
+                                iconOnly = true
                             )
                         }
 
-                        DropdownMenu(
-                            expanded = isSortMenuOpen,
-                            onDismissRequest = { isSortMenuOpen = false },
-                            modifier = Modifier
-                                .background(DarkCard)
-                                .border(1.dp, DarkCardBorder, RoundedCornerShape(8.dp))
-                        ) {
-                            SortOption.entries.forEach { option ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            text = option.displayName,
-                                            color = if (filters.sortOption == option) PrimaryRed else TextPrimary,
-                                            fontWeight = if (filters.sortOption == option) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    onClick = {
-                                        onSortChange(option)
-                                        isSortMenuOpen = false
-                                    }
+                        // Sort Button & Menu
+                        Box {
+                            OutlinedButton(
+                                onClick = { isSortMenuOpen = true },
+                                shape = RoundedCornerShape(12.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder),
+                                colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkCard),
+                                modifier = Modifier.testTag("sort_menu_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Sort,
+                                    contentDescription = null,
+                                    tint = PrimaryRed,
+                                    modifier = Modifier.size(16.dp)
                                 )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = filters.sortOption.displayName,
+                                    color = TextPrimary,
+                                    fontSize = 12.sp,
+                                    maxLines = 1
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = isSortMenuOpen,
+                                onDismissRequest = { isSortMenuOpen = false },
+                                modifier = Modifier
+                                    .background(DarkCard)
+                                    .border(1.dp, DarkCardBorder, RoundedCornerShape(8.dp))
+                            ) {
+                                SortOption.entries.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = option.displayName,
+                                                color = if (filters.sortOption == option) PrimaryRed else TextPrimary,
+                                                fontWeight = if (filters.sortOption == option) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        },
+                                        onClick = {
+                                            onSortChange(option)
+                                            isSortMenuOpen = false
+                                        }
+                                    )
+                                }
                             }
                         }
                     }

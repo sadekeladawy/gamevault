@@ -68,6 +68,7 @@ import coil.request.ImageRequest
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
 import com.example.data.remote.rawg.RawgGameDto
+import com.example.ui.components.AskAiButton
 import com.example.ui.components.BarChartItem
 import com.example.ui.components.CompletionBarChart
 import com.example.ui.components.GameCard
@@ -133,6 +134,15 @@ fun DashboardScreen(
             DashboardSearchCard(
                 onSearchDatabase = onSearchDatabase,
                 onNavigate = onNavigate
+            )
+        }
+
+        // Ask AI Copilot Banner
+        item(key = "dashboard_ai_copilot", contentType = "ai_copilot") {
+            AskAiButton(
+                onClick = { onNavigate(NavDestination.AI_CHAT) },
+                label = "Ask AI Game Assistant",
+                modifier = Modifier.fillMaxWidth()
             )
         }
 

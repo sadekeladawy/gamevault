@@ -22,7 +22,7 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE games ADD COLUMN franchiseId INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE games ADD COLUMN franchiseId TEXT DEFAULT NULL")
                 db.execSQL("ALTER TABLE games ADD COLUMN franchiseName TEXT DEFAULT NULL")
                 db.execSQL("ALTER TABLE games ADD COLUMN seriesOrder INTEGER DEFAULT NULL")
             }

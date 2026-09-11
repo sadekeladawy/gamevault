@@ -39,12 +39,12 @@ data class Game(
     val notes: String = "",
     val isFavorite: Boolean = false,
     val isArchived: Boolean = false,
+    val franchiseId: String? = null,
+    val franchiseName: String? = null,
+    val seriesOrder: Int? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
-    val userId: String = "",
-    val franchiseId: Long? = null,
-    val franchiseName: String? = null,
-    val seriesOrder: Int? = null
+    val userId: String = ""
 )
 
 class Converters {

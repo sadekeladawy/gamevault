@@ -97,6 +97,71 @@ CRITICAL COPILOT RULES:
     }
 
     /**
+     * Builds focused context when the user taps "Ask AI" from a game details screen.
+     */
+    fun buildGameFocusedContext(game: Game): String {
+        val fStr = if (!game.franchiseName.isNullOrBlank()) " | Franchise: ${game.franchiseName} (Order #${game.seriesOrder ?: "?"})" else ""
+        val ratingStr = if (game.rating > 0) " | User's Rating: ${game.rating}/10" else " | User's Rating: Not rated yet"
+        val favStr = if (game.isFavorite) " | Marked as Favorite: Yes" else ""
+        val notesStr = if (game.notes.isNotBlank()) "\nUser's Personal Notes: \"${game.notes.replace(Regex("\\[RAWG_ID:\\d+\\]"), "").trim()}\"" else ""
+
+        return """
+[ACTIVE SCREEN CONTEXT: USER IS CURRENTLY VIEWING THIS GAME]
+Game Title: ${game.title}
+Platform: ${game.platform}
+Genre: ${game.genre}
+Release Year: ${game.releaseYear}
+GameVault Status: ${game.status.displayName}
+Playtime Logged: ${game.playtimeHours} hours$ratingStr$favStr$fStr$notesStr
+The user is asking questions specifically regarding "${game.title}". Keep answers directly relevant to this game, comparing with similar games if requested.
+[END ACTIVE SCREEN CONTEXT]
+""".trimIndent()
+    }
+
+    /**
+     * Builds focused context when the user taps "Ask AI" from a RAWG search result or discovery card.
+     */
+    fun buildRawgGameFocusedContext(dto: RawgGameDto): String {
+        val genres = dto.genres?.joinToString(", ") { it.name.orEmpty() } ?: "N/A"
+        val platforms = dto.platforms?.joinToString(", ") { it.platform?.name.orEmpty() } ?: "N/A"
+        val devs = dto.developers?.joinToString(", ") { it.name.orEmpty() } ?: ""
+        val devLine = if (devs.isNotBlank()) "\nDeveloper: $devs" else ""
+
+        return """
+[ACTIVE SCREEN CONTEXT: USER IS CURRENTLY VIEWING THIS GAME (FROM DATABASE)]
+Game Title: ${dto.name}
+Release Date: ${dto.released ?: "Unknown"}
+Community Rating: ${String.format(Locale.US, "%.1f", dto.rating ?: 0.0)}/5.0 (${dto.ratingsCount ?: 0} ratings)
+Metacritic Score: ${dto.metacritic ?: "N/A"}
+Genres: $genres
+Platforms: $platforms$devLine
+The user is considering this game and wants your copilot guidance on whether it's worth playing, how long it takes, and how it compares to other games.
+[END ACTIVE SCREEN CONTEXT]
+""".trimIndent()
+    }
+
+    /**
+     * Builds focused context when the user taps "Ask AI" from a franchise/series screen.
+     */
+    fun buildFranchiseFocusedContext(franchiseName: String, seriesGames: List<com.example.data.model.SeriesGameItem>): String {
+        val sb = StringBuilder()
+        sb.append("[ACTIVE SCREEN CONTEXT: USER IS CURRENTLY VIEWING FRANCHISE: $franchiseName]\n")
+        sb.append("Total Games in Series: ${seriesGames.size}\n")
+        val ownedCount = seriesGames.count { it.isInVault }
+        val completedCount = seriesGames.count { it.vaultGame?.status == GameStatus.COMPLETED }
+        sb.append("User Vault Progress: $ownedCount / ${seriesGames.size} owned, $completedCount completed\n\n")
+        sb.append("Full Series Chronology / Play Order:\n")
+        seriesGames.forEach { g ->
+            val orderStr = if (g.seriesOrder != null && g.seriesOrder > 0) "#${g.seriesOrder}" else "-"
+            val vaultStatusStr = if (g.isInVault && g.vaultGame != null) " [IN VAULT: ${g.vaultGame.status.displayName}]" else " [NOT IN VAULT]"
+            sb.append("• $orderStr ${g.title} (${g.releaseYear}, ${g.platform})$vaultStatusStr\n")
+        }
+        sb.append("\nThe user wants advice about this franchise—play order, which games to skip/prioritize, lore, or vault completion. Keep your advice focused on the $franchiseName franchise.\n")
+        sb.append("[END ACTIVE SCREEN CONTEXT]\n")
+        return sb.toString()
+    }
+
+    /**
      * Converts a list of [ChatMessage] into Firebase AI Logic [Content] objects for multi-turn chat sessions.
      */
     fun buildChatHistory(messages: List<ChatMessage>): List<Content> {

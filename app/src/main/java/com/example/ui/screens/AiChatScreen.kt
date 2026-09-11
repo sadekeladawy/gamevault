@@ -34,10 +34,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -74,6 +76,7 @@ import com.example.data.model.ai.MessageSender
 import com.example.data.remote.rawg.RawgGameDto
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentEmerald
+import com.example.ui.components.AiMarkdownText
 import com.example.ui.theme.DarkBg
 import com.example.ui.theme.DarkCard
 import com.example.ui.theme.DarkCardBorder
@@ -82,19 +85,9 @@ import com.example.ui.theme.PrimaryRed
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import com.example.ui.viewmodel.AiActiveContext
 import com.example.ui.viewmodel.AiChatViewModel
 import java.util.Locale
-
-private fun cleanAiPresentationText(raw: String): String {
-    if (raw.isBlank()) return raw
-    return raw
-        .replace(Regex("[⭐★☆✨🌟]"), "")
-        .replace(Regex("Rating\\s*:\\s*[⭐★☆✨🌟]+"), "Rating: ")
-        .replace(Regex("(?m)^\\s*\\*{3,}\\s*$"), "")
-        .replace("**", "")
-        .replace(Regex("(?m)^\\s*\\*\\s+"), "• ")
-        .trim()
-}
 
 @Composable
 fun AiChatScreen(
@@ -108,10 +101,11 @@ fun AiChatScreen(
     val inputText by viewModel.inputText.collectAsStateWithLifecycle()
     val isThinking by viewModel.isThinking.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val activeContext by viewModel.activeContext.collectAsStateWithLifecycle()
 
     val listState = rememberLazyListState()
 
-    val showSuggestions = messages.size <= 1
+    val showSuggestions = messages.size <= 1 && activeContext == null
     val totalItems = (if (showSuggestions) 1 else 0) + messages.size + (if (isThinking) 1 else 0)
 
     // Smooth, non-jumping scroll to bottom when new messages arrive or thinking begins
@@ -136,6 +130,14 @@ fun AiChatScreen(
             onClearChat = { viewModel.clearChat() }
         )
 
+        // Active Context Banner (when user tapped "Ask AI" on a Game or Franchise)
+        if (activeContext != null) {
+            ActiveContextBanner(
+                context = activeContext!!,
+                onDismiss = { viewModel.clearActiveContext() }
+            )
+        }
+
         // Main Chat Messages Area
         Box(
             modifier = Modifier
@@ -148,7 +150,7 @@ fun AiChatScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                // Quick Suggestion Chips Header on start
+                // Quick Suggestion Chips Header on start (general mode)
                 if (showSuggestions) {
                     item(key = "suggested_prompts") {
                         SuggestedPromptsSection(
@@ -172,7 +174,39 @@ fun AiChatScreen(
 
                 if (isThinking) {
                     item(key = "thinking_indicator") {
-                        ThinkingIndicatorItem()
+                        ThinkingIndicatorItem(
+                            onCancel = { viewModel.cancelGeneration() }
+                        )
+                    }
+                }
+            }
+        }
+
+        // Contextual Quick Chips Bar (above input)
+        val quickChips = activeContext?.quickPrompts ?: emptyList()
+        if (quickChips.isNotEmpty()) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(DarkSurface)
+            ) {
+                items(quickChips) { chip ->
+                    Surface(
+                        color = DarkCard,
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.5f)),
+                        modifier = Modifier.clickable {
+                            viewModel.sendMessage(chip, userBacklog)
+                        }
+                    ) {
+                        Text(
+                            text = chip,
+                            fontSize = 12.sp,
+                            color = TextPrimary,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
                     }
                 }
             }
@@ -343,13 +377,109 @@ private fun SuggestedPromptsSection(onPromptClick: (String) -> Unit) {
 }
 
 @Composable
+private fun ActiveContextBanner(
+    context: AiActiveContext,
+    onDismiss: () -> Unit
+) {
+    Surface(
+        color = DarkCard,
+        border = BorderStroke(1.dp, PrimaryRed.copy(alpha = 0.5f)),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            if (!context.coverUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = context.coverUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(PrimaryRed.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SportsEsports,
+                        contentDescription = null,
+                        tint = PrimaryRed,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = PrimaryRed,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Focused Context",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryRed
+                    )
+                }
+                Text(
+                    text = context.title,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (!context.subtitle.isNullOrBlank()) {
+                    Text(
+                        text = context.subtitle,
+                        fontSize = 11.sp,
+                        color = TextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Clear context",
+                    tint = TextMuted,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ChatMessageItem(
     message: ChatMessage,
     onSelectGame: (RawgGameDto) -> Unit,
     onAddRawgGameToVault: ((RawgGameDto) -> Unit)? = null
 ) {
     val isUser = message.sender == MessageSender.USER
-    val presentationText = remember(message.text) { cleanAiPresentationText(message.text) }
 
     Column(
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
@@ -386,15 +516,24 @@ private fun ChatMessageItem(
                     bottomEnd = if (isUser) 4.dp else 16.dp
                 ),
                 border = if (isUser) null else BorderStroke(1.dp, DarkCardBorder),
-                modifier = Modifier.widthIn(max = 310.dp)
+                modifier = Modifier.widthIn(max = 320.dp)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    Text(
-                        text = presentationText,
-                        color = if (isUser) Color.White else TextPrimary,
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp
-                    )
+                    if (isUser) {
+                        Text(
+                            text = message.text,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        )
+                    } else {
+                        AiMarkdownText(
+                            markdown = message.text,
+                            textColor = TextPrimary,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        )
+                    }
                 }
             }
         }
@@ -591,7 +730,9 @@ private fun AiRecommendedGameCard(
 }
 
 @Composable
-private fun ThinkingIndicatorItem() {
+private fun ThinkingIndicatorItem(
+    onCancel: (() -> Unit)? = null
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 0.8f,
@@ -633,7 +774,7 @@ private fun ThinkingIndicatorItem() {
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(14.dp),
@@ -642,10 +783,26 @@ private fun ThinkingIndicatorItem() {
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "GameVault AI is analyzing RAWG database...",
+                    text = "GameVault AI is analyzing...",
                     fontSize = 12.sp,
                     color = TextMuted
                 )
+                if (onCancel != null) {
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Surface(
+                        color = Color.White.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.clickable { onCancel() }
+                    ) {
+                        Text(
+                            text = "Stop",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryRed,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
             }
         }
     }

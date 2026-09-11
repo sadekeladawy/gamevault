@@ -902,7 +902,16 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                 onArchiveToggle = { viewModel.toggleArchiveGame(it) },
                 onStatusChange = { newStatus -> viewModel.updateGameStatus(game, newStatus) },
                 onSaveNotes = { newNotes -> viewModel.updateGameNotes(game, newNotes) },
-                onViewFranchise = { fName -> viewModel.openFranchise(fName) }
+                onViewFranchise = { fName -> viewModel.openFranchise(fName) },
+                onAskAi = { g, dto ->
+                    viewModel.closeGameDetails()
+                    if (g != null) {
+                        viewModel.aiChatViewModel.setGameContext(g)
+                    } else if (dto != null) {
+                        viewModel.aiChatViewModel.setRawgGameContext(dto)
+                    }
+                    viewModel.navigateTo(NavDestination.AI_CHAT)
+                }
             )
         }
 
@@ -914,6 +923,15 @@ fun MainScreen(viewModel: GameVaultViewModel) {
                 onAddToVault = { dto, status -> viewModel.addRawgGameToVault(dto, status) },
                 onSelectSimilarGame = { viewModel.openRawgGameDetails(it) },
                 onViewFranchise = { fName -> viewModel.openFranchise(fName) },
+                onAskAi = { g, dto ->
+                    viewModel.closeRawgGameDetails()
+                    if (g != null) {
+                        viewModel.aiChatViewModel.setGameContext(g)
+                    } else if (dto != null) {
+                        viewModel.aiChatViewModel.setRawgGameContext(dto)
+                    }
+                    viewModel.navigateTo(NavDestination.AI_CHAT)
+                },
                 isInVault = viewModel.isGameInVault(rawgDto.name),
                 vaultGameStatus = viewModel.getVaultGame(rawgDto.name)?.status
             )
@@ -1132,7 +1150,8 @@ fun ScreenRouter(
                 onToggleShowArchived = { viewModel.toggleShowArchived() },
                 onGameClick = { viewModel.openGameDetails(it) },
                 onToggleFavorite = { viewModel.toggleFavorite(it) },
-                onAddGame = { viewModel.openAddGame() }
+                onAddGame = { viewModel.openAddGame() },
+                onAskAi = { viewModel.navigateTo(NavDestination.AI_CHAT) }
             )
         }
 
@@ -1143,7 +1162,13 @@ fun ScreenRouter(
                     details = fDetails!!,
                     onBack = { viewModel.closeFranchise() },
                     onGameClick = { viewModel.openGameDetails(it) },
-                    onStartSession = { viewModel.startGamingSession(it) }
+                    onStartSession = { viewModel.startGamingSession(it) },
+                    onSeriesGameClick = { seriesItem -> viewModel.openSeriesGameDetails(seriesItem) },
+                    onAddSeriesGameToVault = { seriesItem -> viewModel.addSeriesGameToVault(seriesItem) },
+                    onAskAi = { franchiseName, seriesGames ->
+                        viewModel.aiChatViewModel.setFranchiseContext(franchiseName, seriesGames)
+                        viewModel.navigateTo(NavDestination.AI_CHAT)
+                    }
                 )
             }
         }
@@ -1162,7 +1187,8 @@ fun ScreenRouter(
                 onSortChange = { viewModel.setSortOption(it) },
                 onGameClick = { viewModel.openGameDetails(it) },
                 onToggleFavorite = { viewModel.toggleFavorite(it) },
-                onAddGame = { viewModel.openAddGame() }
+                onAddGame = { viewModel.openAddGame() },
+                onAskAi = { viewModel.navigateTo(NavDestination.AI_CHAT) }
             )
         }
 
@@ -1180,7 +1206,8 @@ fun ScreenRouter(
                 onSortChange = { viewModel.setSortOption(it) },
                 onGameClick = { viewModel.openGameDetails(it) },
                 onToggleFavorite = { viewModel.toggleFavorite(it) },
-                onAddGame = { viewModel.openAddGame() }
+                onAddGame = { viewModel.openAddGame() },
+                onAskAi = { viewModel.navigateTo(NavDestination.AI_CHAT) }
             )
         }
 
@@ -1198,7 +1225,8 @@ fun ScreenRouter(
                 onSortChange = { viewModel.setSortOption(it) },
                 onGameClick = { viewModel.openGameDetails(it) },
                 onToggleFavorite = { viewModel.toggleFavorite(it) },
-                onAddGame = { viewModel.openAddGame() }
+                onAddGame = { viewModel.openAddGame() },
+                onAskAi = { viewModel.navigateTo(NavDestination.AI_CHAT) }
             )
         }
 
@@ -1216,7 +1244,8 @@ fun ScreenRouter(
                 onSortChange = { viewModel.setSortOption(it) },
                 onGameClick = { viewModel.openGameDetails(it) },
                 onToggleFavorite = { viewModel.toggleFavorite(it) },
-                onAddGame = { viewModel.openAddGame() }
+                onAddGame = { viewModel.openAddGame() },
+                onAskAi = { viewModel.navigateTo(NavDestination.AI_CHAT) }
             )
         }
 

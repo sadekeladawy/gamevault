@@ -50,7 +50,12 @@ class RawgRepository(
                     val response = adapter.fromJson(cached.jsonPayload)
                     if (response?.results != null) {
                         Log.d(TAG, "RAWG search loaded from local Room cache (${response.results.size} games)")
-                        return@withContext Result.success(response.results)
+                        val ranked = if (!trimmedQuery.isNullOrBlank()) {
+                            GameSearchRanker.rank(trimmedQuery, response.results)
+                        } else {
+                            response.results
+                        }
+                        return@withContext Result.success(ranked)
                     }
                 }
             } catch (e: Exception) {
@@ -59,7 +64,11 @@ class RawgRepository(
         }
 
         try {
-            Log.d(TAG, "Searching RAWG with filters - query: \"$trimmedQuery\", genres: $genres, platforms: $platforms, dates: $dates, ordering: $ordering")
+            // When user enters a specific search query, default ordering should be relevance (null),
+            // NOT -rating which destroys relevance matching on RAWG's backend!
+            val effectiveOrdering = if (!trimmedQuery.isNullOrBlank() && ordering == "-rating") null else ordering
+            Log.d(TAG, "Searching RAWG with filters - query: \"$trimmedQuery\", genres: $genres, platforms: $platforms, dates: $dates, ordering: $effectiveOrdering")
+
             val response = apiService.searchGames(
                 apiKey = apiKey,
                 search = trimmedQuery,
@@ -70,24 +79,54 @@ class RawgRepository(
                 tags = tags?.takeIf { it.isNotBlank() },
                 dates = dates?.takeIf { it.isNotBlank() },
                 metacritic = metacritic?.takeIf { it.isNotBlank() },
-                ordering = ordering,
+                ordering = effectiveOrdering,
                 page = page,
                 pageSize = pageSize
             )
-            val results = response.results ?: emptyList()
-            Log.d(TAG, "RAWG search succeeded with ${results.size} games")
+            val directResults = response.results ?: emptyList()
 
-            if (rawgCacheDao != null && results.isNotEmpty()) {
+            // Check if query has an expanded alias (e.g. "GTA 5" -> "grand theft auto 5")
+            val expandedAlias = trimmedQuery?.let { GameSearchRanker.expandQueryAliases(it) }
+            val combinedResults = if (!trimmedQuery.isNullOrBlank() && !expandedAlias.isNullOrBlank() && !expandedAlias.equals(trimmedQuery, ignoreCase = true)) {
+                try {
+                    val aliasResponse = apiService.searchGames(
+                        apiKey = apiKey,
+                        search = expandedAlias,
+                        genres = genres?.takeIf { it.isNotBlank() },
+                        platforms = platforms?.takeIf { it.isNotBlank() },
+                        ordering = effectiveOrdering,
+                        page = 1,
+                        pageSize = pageSize
+                    )
+                    val aliasResults = aliasResponse.results ?: emptyList()
+                    (directResults + aliasResults).distinctBy { it.id }
+                } catch (e: Exception) {
+                    directResults
+                }
+            } else {
+                directResults
+            }
+
+            // Apply high-precision relevance ranking algorithm
+            val rankedResults = if (!trimmedQuery.isNullOrBlank()) {
+                GameSearchRanker.rank(trimmedQuery, combinedResults)
+            } else {
+                combinedResults
+            }
+
+            Log.d(TAG, "RAWG search succeeded with ${rankedResults.size} games ranked by relevance")
+
+            if (rawgCacheDao != null && rankedResults.isNotEmpty()) {
                 try {
                     val adapter = moshi.adapter(RawgSearchResponse::class.java)
-                    val jsonPayload = adapter.toJson(response)
+                    val jsonPayload = adapter.toJson(RawgSearchResponse(results = rankedResults, count = rankedResults.size))
                     rawgCacheDao.insertCache(RawgCacheEntity(cacheKey = cacheKey, jsonPayload = jsonPayload))
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed caching search response: ${e.message}")
                 }
             }
 
-            Result.success(results)
+            Result.success(rankedResults)
         } catch (e: IOException) {
             Log.e(TAG, "Network error during RAWG search: ${e.message}", e)
             if (rawgCacheDao != null) {
@@ -98,7 +137,12 @@ class RawgRepository(
                         val response = adapter.fromJson(cached.jsonPayload)
                         if (response?.results != null) {
                             Log.d(TAG, "RAWG search served from offline cache fallback (${response.results.size} games)")
-                            return@withContext Result.success(response.results)
+                            val ranked = if (!trimmedQuery.isNullOrBlank()) {
+                                GameSearchRanker.rank(trimmedQuery, response.results)
+                            } else {
+                                response.results
+                            }
+                            return@withContext Result.success(ranked)
                         }
                     }
                 } catch (ce: Exception) {
@@ -178,6 +222,54 @@ class RawgRepository(
             Result.failure(Exception("Network error connecting to RAWG API.", e))
         } catch (e: HttpException) {
             Result.failure(Exception("RAWG API error (${e.code()}).", e))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getGameSeries(gameIdOrSlug: String): Result<List<RawgGameDto>> = withContext(Dispatchers.IO) {
+        if (gameIdOrSlug.isBlank()) return@withContext Result.success(emptyList())
+        val cacheKey = "series_$gameIdOrSlug"
+
+        if (rawgCacheDao != null) {
+            try {
+                val cached = rawgCacheDao.getCache(cacheKey)
+                if (cached != null && (System.currentTimeMillis() - cached.cachedAt) < CACHE_TTL_MS) {
+                    val adapter = moshi.adapter(RawgSearchResponse::class.java)
+                    val response = adapter.fromJson(cached.jsonPayload)
+                    if (response?.results != null) {
+                        Log.d(TAG, "RAWG series loaded from local Room cache (${response.results.size} games)")
+                        return@withContext Result.success(response.results)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed reading series cache: ${e.message}")
+            }
+        }
+
+        try {
+            Log.d(TAG, "Fetching series/franchise games for RAWG ID/slug: $gameIdOrSlug")
+            val response = apiService.getGameSeries(
+                gameId = gameIdOrSlug,
+                apiKey = apiKey,
+                pageSize = 20
+            )
+            val list = response.results ?: emptyList()
+
+            if (rawgCacheDao != null && list.isNotEmpty()) {
+                try {
+                    val adapter = moshi.adapter(RawgSearchResponse::class.java)
+                    val jsonPayload = adapter.toJson(response)
+                    rawgCacheDao.insertCache(RawgCacheEntity(cacheKey = cacheKey, jsonPayload = jsonPayload))
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed caching series games: ${e.message}")
+                }
+            }
+
+            Result.success(list)
+        } catch (e: IOException) {
+            Log.e(TAG, "Network error fetching series for $gameIdOrSlug: ${e.message}", e)
+            Result.failure(e)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -307,50 +399,6 @@ class RawgRepository(
             Result.success(response.results ?: emptyList())
         } catch (e: Exception) {
             Result.failure(e)
-        }
-    }
-
-    suspend fun getGameSeries(gameIdOrSlug: String): Result<List<RawgGameDto>> = withContext(Dispatchers.IO) {
-        if (gameIdOrSlug.isBlank()) return@withContext Result.success(emptyList())
-        val cacheKey = "series_$gameIdOrSlug"
-
-        if (rawgCacheDao != null) {
-            try {
-                val cached = rawgCacheDao.getCache(cacheKey)
-                if (cached != null && (System.currentTimeMillis() - cached.cachedAt) < CACHE_TTL_MS) {
-                    val adapter = moshi.adapter(RawgSearchResponse::class.java)
-                    val response = adapter.fromJson(cached.jsonPayload)
-                    if (response?.results != null) {
-                        return@withContext Result.success(response.results)
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed reading series cache: ${e.message}")
-            }
-        }
-
-        try {
-            Log.d(TAG, "Fetching game series for RAWG ID/slug: $gameIdOrSlug")
-            val response = apiService.getGameSeries(
-                gameId = gameIdOrSlug,
-                apiKey = apiKey
-            )
-            val list = response.results ?: emptyList()
-
-            if (rawgCacheDao != null && list.isNotEmpty()) {
-                try {
-                    val adapter = moshi.adapter(RawgSearchResponse::class.java)
-                    val jsonPayload = adapter.toJson(response)
-                    rawgCacheDao.insertCache(RawgCacheEntity(cacheKey = cacheKey, jsonPayload = jsonPayload))
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed caching series: ${e.message}")
-                }
-            }
-
-            Result.success(list)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to fetch game series for $gameIdOrSlug: ${e.message}")
-            Result.success(emptyList())
         }
     }
 

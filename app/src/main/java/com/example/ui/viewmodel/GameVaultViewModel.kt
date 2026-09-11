@@ -10,6 +10,7 @@ import com.example.data.model.Franchise
 import com.example.data.model.FranchiseDetails
 import com.example.data.model.Game
 import com.example.data.model.GameStatus
+import com.example.data.model.SeriesGameItem
 import com.example.data.model.UserProfile
 import com.example.data.repository.AuthRepository
 import com.example.data.repository.AuthState
@@ -1228,6 +1229,68 @@ class GameVaultViewModel(application: Application) : AndroidViewModel(applicatio
             closeGameDetails()
             _libraryFilters.value = LibraryFilters() // Reset filters so newly added game is visible at top
             _currentDestination.value = NavDestination.LIBRARY
+        }
+    }
+
+    fun openSeriesGameDetails(item: SeriesGameItem) {
+        if (item.isInVault && item.vaultGame != null) {
+            openGameDetails(item.vaultGame)
+            return
+        }
+        viewModelScope.launch {
+            if (item.rawgId != null) {
+                val gameDto = rawgRepository.getGameDetails(item.rawgId.toString()).getOrNull()
+                if (gameDto != null) {
+                    openRawgGameDetails(gameDto)
+                    return@launch
+                }
+            }
+            val searchRes = rawgRepository.searchGames(item.title).getOrNull()?.firstOrNull()
+            if (searchRes != null) {
+                val detailed = rawgRepository.getGameDetails(searchRes.id.toString()).getOrNull() ?: searchRes
+                openRawgGameDetails(detailed)
+            }
+        }
+    }
+
+    fun addSeriesGameToVault(item: SeriesGameItem, status: GameStatus = GameStatus.BACKLOG) {
+        if (item.isInVault) return
+        viewModelScope.launch {
+            var rawgDto: RawgGameDto? = null
+            if (item.rawgId != null) {
+                rawgDto = rawgRepository.getGameDetails(item.rawgId.toString()).getOrNull()
+            }
+            if (rawgDto == null) {
+                val searchRes = rawgRepository.searchGames(item.title).getOrNull()?.firstOrNull()
+                if (searchRes != null) {
+                    rawgDto = rawgRepository.getGameDetails(searchRes.id.toString()).getOrNull() ?: searchRes
+                }
+            }
+            if (rawgDto != null) {
+                addRawgGameToVault(rawgDto, status)
+                _snackbarMessage.emit("Added \"${item.title}\" to your Vault!")
+            } else {
+                val user = currentUser.value
+                val uid = user?.uid ?: ""
+                val newGame = Game(
+                    title = item.title,
+                    coverUrl = item.coverUrl ?: "",
+                    platform = "PC",
+                    genre = "Action",
+                    releaseYear = item.releaseYear ?: 2024,
+                    status = status,
+                    playtimeHours = 0.0,
+                    rating = 0,
+                    userId = uid,
+                    franchiseName = _selectedFranchiseName.value,
+                    seriesOrder = item.seriesOrder
+                )
+                val id = repository.insertGame(newGame)
+                if (uid.isNotBlank()) {
+                    firestoreRepository.saveUserGame(uid, newGame.copy(id = id))
+                }
+                _snackbarMessage.emit("Added \"${item.title}\" to your Vault!")
+            }
         }
     }
 
